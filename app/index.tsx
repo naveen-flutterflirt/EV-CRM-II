@@ -8,21 +8,32 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
+import { WelcomeScreen } from '../src/features/auth/screens/WelcomeScreen';
 import { LoginScreen } from '../src/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../src/features/auth/screens/RegisterScreen';
+import { EmailVerificationScreen } from '../src/features/auth/screens/EmailVerificationScreen';
 import { VehicleCard } from '../src/features/portal/myVehicles/components/VehicleCard';
 import { LiveTrackingCard } from '../src/features/portal/liveTracking/components/LiveTrackingCard';
 import { DashboardStatsCard } from '../src/features/platform/dashboard/components/DashboardStatsCard';
 
 export default function HomeScreen(): React.JSX.Element {
-  const [currentScreen, setCurrentScreen] = useState<'login' | 'register' | 'home'>('login');
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'home'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
   const handleLoginSuccess = (user: any) => {
-    setCurrentUser(user);
-    const role = (typeof user?.role === 'string'
-      ? user?.role
-      : user?.role?.roleCode || 'customer').toLowerCase();
+    setPendingUser(user);
+    setCurrentScreen('email-verification');
+  };
+
+  const handleVerificationSuccess = () => {
+    if (!pendingUser) return;
+    setCurrentUser(pendingUser);
+    const role = (typeof pendingUser?.role === 'string'
+      ? pendingUser?.role
+      : pendingUser?.role?.roleCode || 'customer').toLowerCase();
+    
+    setPendingUser(null);
     
     if (role === 'customer') {
       router.replace('/dashboard');
@@ -33,7 +44,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const handleSignOut = () => {
     setCurrentUser(null);
-    setCurrentScreen('login');
+    setCurrentScreen('welcome');
   };
 
   const userRoleCode = (typeof currentUser?.role === 'string'
@@ -41,6 +52,28 @@ export default function HomeScreen(): React.JSX.Element {
     : currentUser?.role?.roleCode || 'customer').toLowerCase();
 
   const userDisplayName = currentUser?.name || currentUser?.fullName || currentUser?.username || 'EV User';
+
+  if (currentScreen === 'welcome') {
+    return (
+      <WelcomeScreen
+        onNavigateToLogin={() => setCurrentScreen('login')}
+        onNavigateToRegister={() => setCurrentScreen('register')}
+      />
+    );
+  }
+
+  if (currentScreen === 'email-verification') {
+    return (
+      <EmailVerificationScreen
+        email={pendingUser?.email || ''}
+        onVerificationSuccess={handleVerificationSuccess}
+        onBackToLogin={() => {
+          setPendingUser(null);
+          setCurrentScreen('login');
+        }}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
