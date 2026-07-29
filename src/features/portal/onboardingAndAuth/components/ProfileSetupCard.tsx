@@ -14,7 +14,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { updateCustomerProfileApi } from '../api';
+import { useUpdateCustomerProfile } from '../hooks/useOnboarding';
 
 const { width } = Dimensions.get('window');
 
@@ -53,8 +53,10 @@ export const ProfileSetupCard: React.FC<ProfileSetupCardProps> = ({
   const [city, setCity] = useState('');
   
   const [isCityModalVisible, setIsCityModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const updateProfileMutation = useUpdateCustomerProfile();
+  const loading = updateProfileMutation.isPending;
 
   const handleContinue = async () => {
     if (!fullName) {
@@ -74,11 +76,10 @@ export const ProfileSetupCard: React.FC<ProfileSetupCardProps> = ({
       return;
     }
 
-    setLoading(true);
     setError(null);
 
     try {
-      const res = await updateCustomerProfileApi({
+      const res = await updateProfileMutation.mutateAsync({
         fullName,
         phone,
         email,
@@ -92,8 +93,6 @@ export const ProfileSetupCard: React.FC<ProfileSetupCardProps> = ({
       }
     } catch (err: any) {
       setError(err.message || 'Error updating profile. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 

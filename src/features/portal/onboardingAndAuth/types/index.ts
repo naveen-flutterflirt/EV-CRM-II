@@ -14,3 +14,19 @@ export interface SavedAddress {
   pincode: string;
   isDefault: boolean;
 }
+
+export interface VehicleModelMeta {
+  modelId: string;
+  modelName: string;
+}
+
+export interface VehicleBrandMeta {
+  manufacturerId: string;
+  name: string;
+  models: VehicleModelMeta[];
+}
+
+export interface VehicleSetupPayload {
+  modelId: string;
+  vin?: string;
+}

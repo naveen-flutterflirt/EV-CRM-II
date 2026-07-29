@@ -12,13 +12,14 @@ import { WelcomeScreen } from '../src/features/auth/screens/WelcomeScreen';
 import { LoginScreen } from '../src/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../src/features/auth/screens/RegisterScreen';
 import { EmailVerificationScreen } from '../src/features/auth/screens/EmailVerificationScreen';
-import { ProfileSetupCard } from '../src/features/portal/onboardingAndAuth';
+import { ProfileSetupCard, VehicleSetupCard } from '../src/features/portal/onboardingAndAuth';
+import { LoadingScreen } from '../src/common/components';
 import { VehicleCard } from '../src/features/portal/myVehicles/components/VehicleCard';
 import { LiveTrackingCard } from '../src/features/portal/liveTracking/components/LiveTrackingCard';
 import { DashboardStatsCard } from '../src/features/platform/dashboard/components/DashboardStatsCard';
 
 export default function HomeScreen(): React.JSX.Element {
-  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'home'>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'setup-vehicle' | 'onboarding-loading' | 'home'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
@@ -40,9 +41,9 @@ export default function HomeScreen(): React.JSX.Element {
     const role = (typeof user?.role === 'string'
       ? user?.role
       : user?.role?.roleCode || 'customer').toLowerCase();
-    
+
     setPendingUser(null);
-    
+
     if (role === 'customer') {
       router.replace('/dashboard');
     } else {
@@ -52,7 +53,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const handleVerificationSuccess = () => {
     if (!pendingUser) return;
-    
+
     if (isSignupFlow) {
       setCurrentScreen('setup-profile');
     } else {
@@ -61,9 +62,16 @@ export default function HomeScreen(): React.JSX.Element {
   };
 
   const handleProfileSetupComplete = () => {
-    if (pendingUser) {
-      completeAuthentication(pendingUser);
-    }
+    setCurrentScreen('setup-vehicle');
+  };
+
+  const handleVehicleSetupComplete = () => {
+    setCurrentScreen('onboarding-loading');
+    setTimeout(() => {
+      if (pendingUser) {
+        completeAuthentication(pendingUser);
+      }
+    }, 2500);
   };
 
   const handleSignOut = () => {
@@ -114,6 +122,20 @@ export default function HomeScreen(): React.JSX.Element {
         }}
       />
     );
+  }
+
+  if (currentScreen === 'setup-vehicle') {
+    return (
+      <VehicleSetupCard
+        onComplete={handleVehicleSetupComplete}
+        onSkip={handleVehicleSetupComplete}
+        onBack={() => setCurrentScreen('setup-profile')}
+      />
+    );
+  }
+
+  if (currentScreen === 'onboarding-loading') {
+    return <LoadingScreen message="Setting up your account..." />;
   }
 
   return (

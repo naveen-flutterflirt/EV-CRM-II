@@ -3,6 +3,9 @@ export interface UserProfile {
   name: string;
   location: string;
   avatarUrl?: string;
+  branch?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface CustomerVehicleStatus {

@@ -20,17 +20,20 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
     return {
       user: {
         id: userData?.id || "usr_101",
-        name: userData?.name || userData?.fullName || "Hi Rohan",
+        name: userData?.name || userData?.fullName || "Rohan",
         location: userData?.city || userData?.location || "Indore",
         avatarUrl: userData?.avatarUrl || undefined,
+        branch: userData?.homeCenter?.centerName || "Bhopal Head Office & Wo",
+        email: userData?.email || "rohan@example.com",
+        phone: userData?.phone || "+91 9876543210",
       },
       vehicle: {
         id: firstVehicle?.id || "veh_450x",
         brand: firstVehicle?.brand || firstVehicle?.manufacturerName || "Ather",
         model: firstVehicle?.model || firstVehicle?.modelName || "450X",
         warrantyStatus: firstVehicle?.warrantyStatus || "WARRANTY ACTIVE",
-        batteryHealthPct: firstVehicle?.batteryHealthPct || 84,
-        currentRangeKm: firstVehicle?.currentRangeKm || 112,
+        batteryHealthPct: firstVehicle?.batteryHealthPct || 86,
+        currentRangeKm: firstVehicle?.currentRangeKm || 92,
         totalVehiclesCount: totalVehiclesCount,
       },
       recentActivities: Array.isArray(activityData) && activityData.length > 0
@@ -64,6 +67,9 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
       user: {
         name: "Rohan",
         location: "Indore",
+        branch: "Bhopal Head Office & Wo",
+        email: "rohan@example.com",
+        phone: "+91 9876543210",
       },
       vehicle: {
         id: "veh_450x",
