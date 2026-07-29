@@ -2,7 +2,7 @@ import api from "../../../../config/axios";
 import { CustomerProfileSetup, SavedAddress } from "../types";
 
 export async function updateCustomerProfileApi(payload: CustomerProfileSetup) {
-  const res = await api.patch("/v1/customer/profile", payload);
+  const res = await api.patch("/auth/setup-profile", payload);
   return res.data;
 }
 

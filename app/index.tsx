@@ -12,26 +12,34 @@ import { WelcomeScreen } from '../src/features/auth/screens/WelcomeScreen';
 import { LoginScreen } from '../src/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../src/features/auth/screens/RegisterScreen';
 import { EmailVerificationScreen } from '../src/features/auth/screens/EmailVerificationScreen';
+import { ProfileSetupCard } from '../src/features/portal/onboardingAndAuth';
 import { VehicleCard } from '../src/features/portal/myVehicles/components/VehicleCard';
 import { LiveTrackingCard } from '../src/features/portal/liveTracking/components/LiveTrackingCard';
 import { DashboardStatsCard } from '../src/features/platform/dashboard/components/DashboardStatsCard';
 
 export default function HomeScreen(): React.JSX.Element {
-  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'home'>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'home'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
 
   const handleLoginSuccess = (user: any) => {
+    setIsSignupFlow(false);
     setPendingUser(user);
     setCurrentScreen('email-verification');
   };
 
-  const handleVerificationSuccess = () => {
-    if (!pendingUser) return;
-    setCurrentUser(pendingUser);
-    const role = (typeof pendingUser?.role === 'string'
-      ? pendingUser?.role
-      : pendingUser?.role?.roleCode || 'customer').toLowerCase();
+  const handleRegisterSuccess = (user: any) => {
+    setIsSignupFlow(true);
+    setPendingUser(user);
+    setCurrentScreen('email-verification');
+  };
+
+  const completeAuthentication = (user: any) => {
+    setCurrentUser(user);
+    const role = (typeof user?.role === 'string'
+      ? user?.role
+      : user?.role?.roleCode || 'customer').toLowerCase();
     
     setPendingUser(null);
     
@@ -39,6 +47,22 @@ export default function HomeScreen(): React.JSX.Element {
       router.replace('/dashboard');
     } else {
       setCurrentScreen('home');
+    }
+  };
+
+  const handleVerificationSuccess = () => {
+    if (!pendingUser) return;
+    
+    if (isSignupFlow) {
+      setCurrentScreen('setup-profile');
+    } else {
+      completeAuthentication(pendingUser);
+    }
+  };
+
+  const handleProfileSetupComplete = () => {
+    if (pendingUser) {
+      completeAuthentication(pendingUser);
     }
   };
 
@@ -75,6 +99,23 @@ export default function HomeScreen(): React.JSX.Element {
     );
   }
 
+  if (currentScreen === 'setup-profile') {
+    return (
+      <ProfileSetupCard
+        user={{
+          fullName: pendingUser?.fullName || '',
+          phone: pendingUser?.phone || '',
+          email: pendingUser?.email || '',
+        }}
+        onComplete={handleProfileSetupComplete}
+        onCancel={() => {
+          setPendingUser(null);
+          setCurrentScreen('welcome');
+        }}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" />
@@ -87,7 +128,7 @@ export default function HomeScreen(): React.JSX.Element {
 
       {currentScreen === 'register' && (
         <RegisterScreen
-          onRegisterSuccess={handleLoginSuccess}
+          onRegisterSuccess={handleRegisterSuccess}
           onNavigateToLogin={() => setCurrentScreen('login')}
         />
       )}
