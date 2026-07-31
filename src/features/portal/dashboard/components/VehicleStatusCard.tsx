@@ -12,8 +12,11 @@ interface VehicleStatusCardProps {
 export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
   vehicle,
 }) => {
-  const brand = vehicle?.brand || 'Ather';
-  const model = vehicle?.model || '450X Gen 3';
+  const rawBrand = vehicle?.brand;
+  const brand = typeof rawBrand === 'string' ? rawBrand : (rawBrand?.manufacturerName || 'Ather');
+
+  const rawModel = vehicle?.model;
+  const model = typeof rawModel === 'string' ? rawModel : (rawModel?.modelName || '450X Gen 3');
 
   return (
     <View style={styles.cardContainer}>

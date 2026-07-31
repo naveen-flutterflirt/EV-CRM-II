@@ -25,7 +25,7 @@ export const InputField: React.FC<InputFieldProps> = ({
     <View style={[styles.container, containerStyle]}>
       {label ? <Text style={styles.label}>{label.toUpperCase()}</Text> : null}
       <TextInput
-        style={[styles.input, error ? styles.inputError : null, style]}
+        style={[styles.input, { outlineStyle: 'none' } as any, error ? styles.inputError : null, style]}
         placeholderTextColor="#9ca3af"
         {...props}
       />

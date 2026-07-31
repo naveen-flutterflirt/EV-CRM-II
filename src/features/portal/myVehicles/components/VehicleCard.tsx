@@ -3,9 +3,15 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Vehicle } from '../../../../common/types';
 
 export const VehicleCard: React.FC<{ vehicle?: Vehicle }> = ({ vehicle }) => {
+  const rawBrand = vehicle?.brand as any;
+  const brand = typeof rawBrand === 'string' ? rawBrand : (rawBrand?.manufacturerName || 'Ather');
+
+  const rawModel = vehicle?.model as any;
+  const model = typeof rawModel === 'string' ? rawModel : (rawModel?.modelName || '450X');
+
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{vehicle?.brand || 'Ather'} {vehicle?.model || '450X'}</Text>
+      <Text style={styles.title}>{brand} {model}</Text>
       <Text style={styles.subtitle}>{vehicle?.registrationNumber || 'MP04-EV-1024'}</Text>
       <View style={styles.badge}>
         <Text style={styles.badgeText}>Active Warranty</Text>

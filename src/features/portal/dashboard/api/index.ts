@@ -29,8 +29,8 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
       },
       vehicle: {
         id: firstVehicle?.id || "veh_450x",
-        brand: firstVehicle?.brand || firstVehicle?.manufacturerName || "Ather",
-        model: firstVehicle?.model || firstVehicle?.modelName || "450X",
+        brand: typeof firstVehicle?.brand === 'string' ? firstVehicle.brand : (firstVehicle?.manufacturer?.manufacturerName || firstVehicle?.brand?.manufacturerName || "Ather"),
+        model: typeof firstVehicle?.model === 'string' ? firstVehicle.model : (firstVehicle?.model?.modelName || firstVehicle?.modelName || "450X Gen 3"),
         warrantyStatus: firstVehicle?.warrantyStatus || "WARRANTY ACTIVE",
         batteryHealthPct: firstVehicle?.batteryHealthPct || 86,
         currentRangeKm: firstVehicle?.currentRangeKm || 92,

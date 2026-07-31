@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   StatusBar,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
+import Cookies from 'js-cookie';
+import api from '../src/config/axios';
 import { WelcomeScreen } from '../src/features/auth/screens/WelcomeScreen';
 import { LoginScreen } from '../src/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../src/features/auth/screens/RegisterScreen';
@@ -23,6 +25,30 @@ export default function HomeScreen(): React.JSX.Element {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    const token = Cookies.get('token') || Cookies.get('accessToken');
+    if (token) {
+      api.get('/auth/me')
+        .then((res) => {
+          const user = res.data?.data || res.data;
+          if (user) {
+            completeAuthentication(user);
+          }
+        })
+        .catch(() => {
+          Cookies.remove('token');
+          Cookies.remove('accessToken');
+          Cookies.remove('userRole');
+        })
+        .finally(() => {
+          setIsInitializing(false);
+        });
+    } else {
+      setIsInitializing(false);
+    }
+  }, []);
 
   const handleLoginSuccess = (user: any) => {
     setIsSignupFlow(false);
@@ -84,6 +110,10 @@ export default function HomeScreen(): React.JSX.Element {
     : currentUser?.role?.roleCode || 'customer').toLowerCase();
 
   const userDisplayName = currentUser?.name || currentUser?.fullName || currentUser?.username || 'EV User';
+
+  if (isInitializing) {
+    return <LoadingScreen message="Restoring session..." />;
+  }
 
   if (currentScreen === 'welcome') {
     return (

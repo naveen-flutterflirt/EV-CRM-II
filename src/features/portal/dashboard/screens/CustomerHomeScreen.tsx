@@ -8,6 +8,32 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
+import { PartsStoreScreen } from '../../partsStore';
+import { AccountScreen, MyOrdersScreen, useProfileState } from '../../profile';
+
+const ProfileTabFlow: React.FC = () => {
+  const [profileView, setProfileView] = useState<'ACCOUNT' | 'MY_ORDERS'>('ACCOUNT');
+  const { profile, activeTab, setActiveTab, displayedOrders, handleLogout } = useProfileState();
+
+  if (profileView === 'MY_ORDERS') {
+    return (
+      <MyOrdersScreen
+        orders={displayedOrders}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onBack={() => setProfileView('ACCOUNT')}
+      />
+    );
+  }
+
+  return (
+    <AccountScreen
+      user={profile}
+      onOpenMyOrders={() => setProfileView('MY_ORDERS')}
+      onLogout={handleLogout}
+    />
+  );
+};
 
 interface CustomerHomeScreenProps {
   onBookService?: () => void;
@@ -52,81 +78,12 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         );
       case 'STORE':
         return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>🛍️ EV OEM Spare Parts, Batteries & Accessories Store</Text>
-            <QuickActionsGrid
-              onBookService={onBookService}
-              onLiveTracking={onTrackService}
-              onOrderParts={onSpareParts}
-            />
-          </View>
+          <PartsStoreScreen
+            onBack={() => setActiveTab('HOME')}
+          />
         );
       case 'PROFILE':
-        const profileUser = dashboardData?.user;
-        return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>👤 Profile & Account Details</Text>
-
-            {/* Profile Summary Card */}
-            <View style={styles.profileHeaderCard}>
-              <View style={styles.profileAvatarCircle}>
-                <Feather name="user" size={40} color="#2e5b02" />
-              </View>
-              <View style={styles.profileMeta}>
-                <Text style={styles.profileName}>{profileUser?.name || 'EV User'}</Text>
-                <Text style={styles.profileSubText}>{profileUser?.location || 'Indore'}</Text>
-                <View style={styles.customerBadge}>
-                  <Text style={styles.customerBadgeText}>VERIFIED CUSTOMER</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Details List Card */}
-            <View style={styles.detailsCard}>
-              {/* Full Name */}
-              <View style={styles.detailRow}>
-                <Feather name="user" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>FULL NAME</Text>
-                  <Text style={styles.detailValue}>{profileUser?.name || 'Rohan'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Email */}
-              <View style={styles.detailRow}>
-                <Feather name="mail" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>EMAIL ADDRESS</Text>
-                  <Text style={styles.detailValue}>{profileUser?.email || 'rohan@example.com'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Phone */}
-              <View style={styles.detailRow}>
-                <Feather name="phone" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>PHONE NUMBER</Text>
-                  <Text style={styles.detailValue}>{profileUser?.phone || '+91 9876543210'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Branch */}
-              <View style={styles.detailRow}>
-                <Feather name="home" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>REGISTERED BRANCH</Text>
-                  <Text style={styles.detailValue}>{profileUser?.branch || 'Bhopal Head Office & Wo'}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
+        return <ProfileTabFlow />;
       case 'HOME':
       default:
         return (
