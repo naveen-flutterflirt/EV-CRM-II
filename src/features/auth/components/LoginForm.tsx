@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Cookies from 'js-cookie';
 import { useAuthHook } from '../hooks/useAuth';
 
 interface LoginFormProps {
@@ -42,6 +43,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       const res = await login({ email, password });
       if (res.user) {
+        if (res.token) {
+          Cookies.set("token", res.token, { expires: 7 });
+          Cookies.set("userRole", res.user.role?.roleCode || "customer", { expires: 7 });
+        }
         onLoginSuccess(res.user);
       }
     } catch (err: any) {
