@@ -1,0 +1,67 @@
+import { useQuery } from '@tanstack/react-query';
+import {
+  fetchCustomerJobCardsApi,
+  fetchJobCardHistoryApi,
+  fetchJobInspectionsApi,
+  fetchJobServicesApi,
+  fetchJobPartsApi,
+  fetchJobCardInvoiceApi,
+  fetchCustomerAppointmentsApi,
+} from '../api';
+import { JobCard, Appointment } from '../types';
+
+export function useActiveJobCard(customerId?: string) {
+  return useQuery<JobCard[]>({
+    queryKey: ['portal', 'jobCards', customerId],
+    queryFn: () => fetchCustomerJobCardsApi(customerId || ''),
+    enabled: !!customerId,
+  });
+}
+
+export function useJobCardHistory(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardHistory', jobCardId],
+    queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
+    enabled: !!jobCardId,
+  });
+}
+
+export function useJobCardInspections(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardInspections', jobCardId],
+    queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
+    enabled: !!jobCardId,
+  });
+}
+
+export function useJobCardServices(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardServices', jobCardId],
+    queryFn: () => fetchJobServicesApi(jobCardId || ''),
+    enabled: !!jobCardId,
+  });
+}
+
+export function useJobCardParts(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardParts', jobCardId],
+    queryFn: () => fetchJobPartsApi(jobCardId || ''),
+    enabled: !!jobCardId,
+  });
+}
+
+export function useJobCardInvoice(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardInvoice', jobCardId],
+    queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
+    enabled: !!jobCardId,
+  });
+}
+
+export function useCustomerAppointments(customerId?: string) {
+  return useQuery<Appointment[]>({
+    queryKey: ['portal', 'appointments', customerId],
+    queryFn: () => fetchCustomerAppointmentsApi(customerId || ''),
+    enabled: !!customerId,
+  });
+}

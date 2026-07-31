@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 
 interface BookingSuccessScreenProps {
   pickupRequired: boolean;
+  selectedCenter?: string;
   selectedDate: string;
   selectedSlotTime: string;
   onGoHome: () => void;
@@ -12,6 +13,7 @@ interface BookingSuccessScreenProps {
 
 export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
   pickupRequired,
+  selectedCenter = 'Downtown Flutter Hub',
   selectedDate,
   selectedSlotTime,
   onGoHome,
@@ -48,6 +50,17 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
           </Text>
         </View>
 
+        {!pickupRequired && (
+          <>
+            <View style={styles.rowDivider} />
+            {/* Service Center */}
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>SERVICE CENTER</Text>
+              <Text style={styles.summaryValue}>{selectedCenter}</Text>
+            </View>
+          </>
+        )}
+
         <View style={styles.rowDivider} />
 
         {/* Date */}
@@ -69,7 +82,7 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.primaryButton} onPress={onTrackStatus} activeOpacity={0.8}>
           <Text style={styles.primaryButtonText}>Track Live Status</Text>
-          <Feather name="activity" size={20} color="#ffffff" />
+          <Feather name="activity" size={20} color="#1a2b0c" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onGoHome} activeOpacity={0.7}>
@@ -92,11 +105,11 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#95d03a',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    shadowColor: '#4d6a00',
+    shadowColor: '#95d03a',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -170,18 +183,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#a2e52c',
     borderRadius: 30,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    shadowColor: '#4d6a00',
+    shadowColor: '#a2e52c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: '#ffffff',
+    color: '#1a2b0c',
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
@@ -193,9 +206,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   secondaryButtonText: {
-    color: '#4d6a00',
+    color: '#2e5b02',
     fontSize: 16,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
   },
 });
+

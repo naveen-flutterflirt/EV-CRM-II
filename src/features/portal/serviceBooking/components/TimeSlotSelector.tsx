@@ -55,7 +55,9 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
     { id: 'slot_4', timeSlot: '04:00 PM - 06:00 PM', availableCount: 1 },
   ];
 
-  const activeSlots = slots && slots.length > 0 ? slots : fallbackSlots;
+  const activeSlots = slots && Array.isArray(slots) && slots.length > 0 && 'timeSlot' in slots[0]
+    ? slots
+    : fallbackSlots;
 
   const handleConfirm = () => {
     if (selectedSlotId && selectedSlotTime) {
@@ -118,18 +120,18 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
       <Text style={styles.sectionTitle}>Available Slots ({formatDateLabel(selectedDate)})</Text>
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4d6a00" />
+          <ActivityIndicator size="large" color="#95d03a" />
           <Text style={styles.loadingText}>Fetching available slots...</Text>
         </View>
       ) : (
         <ScrollView style={styles.slotsScroll} showsVerticalScrollIndicator={false}>
           <View style={styles.slotsGrid}>
-            {activeSlots.map((slot) => {
+            {activeSlots.map((slot, index) => {
               const isSelected = selectedSlotId === slot.id;
               const isAvailable = slot.availableCount > 0;
               return (
                 <TouchableOpacity
-                  key={slot.id}
+                  key={slot.id || `slot-${index}`}
                   style={[
                     styles.slotCard,
                     isSelected ? styles.selectedSlotCard : styles.unselectedSlotCard,
@@ -175,11 +177,11 @@ export const TimeSlotSelector: React.FC<TimeSlotSelectorProps> = ({
           activeOpacity={0.8}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color="#1a2b0c" />
           ) : (
             <>
               <Text style={styles.confirmText}>Book Appointment</Text>
-              <Feather name="check" size={20} color="#ffffff" />
+              <Feather name="check" size={20} color="#1a2b0c" />
             </>
           )}
         </TouchableOpacity>
@@ -232,8 +234,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   selectedDateCard: {
-    backgroundColor: '#4d6a00',
-    borderColor: '#4d6a00',
+    backgroundColor: '#95d03a',
+    borderColor: '#95d03a',
   },
   unselectedDateCard: {
     backgroundColor: '#ffffff',
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Regular',
   },
   selectedDateText: {
-    color: '#c6d8b2',
+    color: '#e6f0d8',
   },
   selectedDateNumText: {
     color: '#ffffff',
@@ -293,8 +295,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   selectedSlotCard: {
-    backgroundColor: '#4d6a00',
-    borderColor: '#4d6a00',
+    backgroundColor: '#95d03a',
+    borderColor: '#95d03a',
   },
   unselectedSlotCard: {
     backgroundColor: '#ffffff',
@@ -325,7 +327,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   selectedAvailabilityText: {
-    color: '#c6d8b2',
+    color: '#e6f0d8',
   },
   footer: {
     paddingVertical: 12,
@@ -334,23 +336,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#a2e52c',
     borderRadius: 30,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    shadowColor: '#4d6a00',
+    shadowColor: '#a2e52c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   disabledConfirmButton: {
-    backgroundColor: '#c4cbba',
+    backgroundColor: '#e4e4e7',
     shadowOpacity: 0,
     elevation: 0,
   },
   confirmText: {
-    color: '#ffffff',
+    color: '#1a2b0c',
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',

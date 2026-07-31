@@ -1,5 +1,6 @@
 export interface UserProfile {
   id?: string;
+  customerId?: string;
   name: string;
   location: string;
   avatarUrl?: string;

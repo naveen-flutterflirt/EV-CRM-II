@@ -106,7 +106,7 @@ export const ServiceModeScreen: React.FC<ServiceModeScreenProps> = ({
         activeOpacity={0.8}
       >
         <Text style={styles.continueText}>Continue</Text>
-        <Feather name="arrow-right" size={20} color="#ffffff" />
+        <Feather name="arrow-right" size={20} color="#1a2b0c" />
       </TouchableOpacity>
     </View>
   );
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   selectedCard: {
-    borderColor: '#4d6a00',
+    borderColor: '#95d03a',
   },
   unselectedCard: {
     borderColor: '#e4e4e7',
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   selectedIconCircle: {
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#95d03a',
   },
   unselectedIconCircle: {
     backgroundColor: '#eceef1',
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#95d03a',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -208,19 +208,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#4d6a00',
+    backgroundColor: '#a2e52c',
     borderRadius: 30,
     paddingVertical: 16,
     paddingHorizontal: 24,
     marginTop: 20,
-    shadowColor: '#4d6a00',
+    shadowColor: '#a2e52c',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   continueText: {
-    color: '#ffffff',
+    color: '#1a2b0c',
     fontSize: 18,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',

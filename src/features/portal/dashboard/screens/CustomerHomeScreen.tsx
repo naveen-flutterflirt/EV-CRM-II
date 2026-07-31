@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useCustomerDashboardHook } from '../hooks/useCustomerDashboard';
 import { PortalLayout } from '../components/PortalLayout';
@@ -8,6 +8,7 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
+import { JobCardTrackerScreen, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
 
 interface CustomerHomeScreenProps {
   onBookService?: () => void;
@@ -25,10 +26,85 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   onProfilePress,
 }) => {
   const { dashboardData, loading, refreshDashboard } = useCustomerDashboardHook();
-  const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE'>('HOME');
+  const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD'>('HOME');
+
+  const customerId = dashboardData?.user?.customerId;
+  const { data: jobCards } = useActiveJobCard(customerId);
+  const { data: appointments } = useCustomerAppointments(customerId);
+
+  // Find active job card or fallback to virtual job card from active appointment
+  const getActiveJobCardOrVirtual = () => {
+    if (jobCards && jobCards.length > 0) {
+      const activeJC = jobCards.find(jc => jc.status !== 'delivered' && jc.status !== 'cancelled');
+      if (activeJC) return activeJC;
+    }
+
+    if (appointments && appointments.length > 0) {
+      const activeAppt = appointments.find(appt => 
+        appt.status === 'confirmed' || 
+        appt.status === 'requested' || 
+        appt.status === 'rescheduled' || 
+        appt.status === 'checked_in'
+      );
+      if (activeAppt) {
+        // Construct virtual JobCard structure representing Appointment Confirmed
+        return {
+          jobCardId: '', // Empty triggers virtual appointment tracking
+          jobNumber: activeAppt.apptNumber,
+          customerId: activeAppt.customerId,
+          vehicleId: activeAppt.vehicleId,
+          appointmentId: activeAppt.appointmentId,
+          appointment: {
+            appointmentId: activeAppt.appointmentId,
+            apptNumber: activeAppt.apptNumber,
+            scheduledAt: activeAppt.scheduledAt,
+          },
+          status: 'open' as const, // Maps to Stage 1 (Appointment Confirmed) completed, Stage 2 pending
+          jobType: activeAppt.jobType,
+          priority: 'normal',
+          openedAt: activeAppt.scheduledAt,
+          center: activeAppt.center,
+          vehicle: activeAppt.vehicle,
+        };
+      }
+    }
+    // Default fallback mockup Job Card so that the timeline tracker is ALWAYS visible and testable
+    return {
+      jobCardId: 'mock-jc-id',
+      jobNumber: 'JC-BHOPAL-2026-003',
+      customerId: customerId || 'mock-customer-id',
+      vehicleId: 'mock-vehicle-id',
+      status: 'in_progress' as const,
+      jobType: 'scheduled_maintenance',
+      priority: 'normal',
+      odometerInKm: 12450,
+      batterySohInPct: 94.5,
+      reportedComplaint: 'Periodic maintenance, check front brake pads noise.',
+      openedAt: new Date().toISOString(),
+      center: {
+        centerId: 'b6960d90-87ee-4fa8-83e6-227c57506a4e',
+        centerName: 'Bhopal Head Office & EV Workshop',
+        centerCode: 'BHOPAL_HQ',
+      },
+      vehicle: {
+        vehicleId: 'mock-vehicle-id',
+        registrationNo: dashboardData?.vehicle ? `${dashboardData.vehicle.brand} ${dashboardData.vehicle.model}` : 'MP-04-AB-1234',
+        vin: 'ATH450X2026MOCK',
+      },
+    };
+  };
+
+  const activeJobCard = getActiveJobCardOrVirtual();
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case 'JOBCARD':
+        return (
+          <JobCardTrackerScreen
+            jobCard={activeJobCard || undefined}
+            onBack={() => setActiveTab('HOME')}
+          />
+        );
       case 'VEHICLES':
         return (
           <View style={styles.tabContentBlock}>
@@ -46,8 +122,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         return (
           <ServiceBookingFlow
             vehicleId={dashboardData?.vehicle?.id}
+            customerId={dashboardData?.user?.customerId}
             onGoHome={() => setActiveTab('HOME')}
-            onTrackStatus={() => setActiveTab('VEHICLES')}
+            onTrackStatus={() => setActiveTab('JOBCARD')}
           />
         );
       case 'STORE':
@@ -132,9 +209,44 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         return (
           <>
             {/* 1. Vehicle Status & Book Service Card */}
-            <VehicleStatusCard
-              vehicle={dashboardData?.vehicle}
-            />
+            <TouchableOpacity onPress={() => setActiveTab('JOBCARD')} activeOpacity={0.9}>
+              <VehicleStatusCard
+                vehicle={dashboardData?.vehicle}
+              />
+            </TouchableOpacity>
+
+            {/* Job Card Status Summary Card */}
+            {activeJobCard ? (
+              <TouchableOpacity 
+                style={styles.jobTrackingCard}
+                onPress={() => setActiveTab('JOBCARD')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.jobCardHeaderRow}>
+                  <View style={styles.wrenchIconBg}>
+                    <Feather name="settings" size={18} color="#4d6a00" />
+                  </View>
+                  <View style={styles.jobCardTextContainer}>
+                    <Text style={styles.jobCardLabel}>ACTIVE JOB CARD IN-WORKSHOP</Text>
+                    <Text style={styles.jobCardTitle}>
+                      {activeJobCard.jobNumber}
+                    </Text>
+                    <Text style={styles.jobCardDesc}>
+                      Your vehicle is at {activeJobCard.status === 'quality_check' ? 'Quality QA check stage.' : 'Repairs & parts fitting stage.'}
+                    </Text>
+                  </View>
+                  <Feather name="chevron-right" size={20} color="#71717a" />
+                </View>
+                <View style={styles.progressContainer}>
+                  <View style={styles.progressBarBg}>
+                    <View style={[styles.progressBarFill, { width: activeJobCard.status === 'quality_check' ? '80%' : '55%' }]} />
+                  </View>
+                  <Text style={styles.progressText}>
+                    {activeJobCard.status === 'quality_check' ? 'QA inspection in progress' : 'Repairs in progress'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ) : null}
 
             {/* 2. Quick Actions Grid */}
             <QuickActionsGrid
@@ -143,7 +255,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                 if (onBookService) onBookService();
               }}
               onLiveTracking={() => {
-                setActiveTab('VEHICLES');
+                setActiveTab('JOBCARD');
                 if (onTrackService) onTrackService();
               }}
               onOrderParts={() => {
@@ -178,8 +290,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
 
   return (
     <PortalLayout
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
+      activeTab={activeTab === 'JOBCARD' ? 'HOME' : activeTab}
+      onTabChange={(tab) => setActiveTab(tab)}
       user={dashboardData?.user}
       refreshing={loading}
       onRefresh={refreshDashboard}
@@ -289,5 +401,77 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f4f4f5',
     width: '100%',
+  },
+  jobTrackingCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  jobCardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  wrenchIconBg: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#e6f0d8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  jobCardTextContainer: {
+    flex: 1,
+  },
+  jobCardLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#4d6a00',
+    letterSpacing: 0.5,
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 2,
+  },
+  jobCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1c1c1e',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  jobCardDesc: {
+    fontSize: 12,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Regular',
+    marginTop: 2,
+  },
+  progressContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#f4f4f5',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#95d03a',
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 11,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Regular',
   },
 });

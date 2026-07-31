@@ -19,7 +19,8 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
 
     return {
       user: {
-        id: userData?.id || "usr_101",
+        id: userData?.id || userData?.userId || "usr_101",
+        customerId: userData?.customerId || undefined,
         name: userData?.name || userData?.fullName || "Rohan",
         location: userData?.city || userData?.location || "Indore",
         avatarUrl: userData?.avatarUrl || undefined,
@@ -28,9 +29,23 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
         phone: userData?.phone || "+91 9876543210",
       },
       vehicle: {
-        id: firstVehicle?.id || "veh_450x",
-        brand: firstVehicle?.brand || firstVehicle?.manufacturerName || "Ather",
-        model: firstVehicle?.model || firstVehicle?.modelName || "450X",
+        id: firstVehicle?.id || firstVehicle?.vehicleId || "veh_450x",
+        brand: (() => {
+          const rawBrand = firstVehicle?.brand || firstVehicle?.manufacturerName || firstVehicle?.model?.manufacturer;
+          if (!rawBrand) return "Ather";
+          if (typeof rawBrand === 'object') {
+            return (rawBrand as any).manufacturerName || (rawBrand as any).name || "Ather";
+          }
+          return String(rawBrand);
+        })(),
+        model: (() => {
+          const rawModel = firstVehicle?.modelName || firstVehicle?.model;
+          if (!rawModel) return "450X";
+          if (typeof rawModel === 'object') {
+            return (rawModel as any).modelName || (rawModel as any).name || "450X";
+          }
+          return String(rawModel);
+        })(),
         warrantyStatus: firstVehicle?.warrantyStatus || "WARRANTY ACTIVE",
         batteryHealthPct: firstVehicle?.batteryHealthPct || 86,
         currentRangeKm: firstVehicle?.currentRangeKm || 92,
