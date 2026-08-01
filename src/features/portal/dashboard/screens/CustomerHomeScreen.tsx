@@ -9,6 +9,145 @@ import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
 import { JobCardTrackerScreen, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
+import {
+  AccountScreen,
+  EditProfileScreen,
+  ServiceHistoryScreen,
+  ServiceDetailScreen,
+  SupportMainScreen,
+  HelpCenterScreen,
+  ContactScreen,
+  SettingsScreen,
+  SecurityScreen,
+  TermsAndPrivacyScreen,
+  useProfileState,
+} from '../../profile';
+
+interface ProfileTabFlowProps {
+  onGoToBooking?: () => void;
+}
+
+const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
+  const {
+    profile,
+    serviceHistory,
+    serviceDetail,
+    supportTickets,
+    faqs,
+    subView,
+    setSubView,
+    saving,
+    pushNotificationsEnabled,
+    setPushNotificationsEnabled,
+    selectedLanguage,
+    setSelectedLanguage,
+    openServiceDetail,
+    handleSaveProfile,
+    handleLogout,
+  } = useProfileState();
+
+  if (subView === 'EDIT_PROFILE') {
+    return (
+      <EditProfileScreen
+        user={profile}
+        saving={saving}
+        onSave={handleSaveProfile}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'SERVICE_HISTORY') {
+    return (
+      <ServiceHistoryScreen
+        history={serviceHistory}
+        onSelectRecord={(record) => openServiceDetail(record)}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'SERVICE_DETAIL') {
+    return (
+      <ServiceDetailScreen
+        detail={serviceDetail}
+        onBack={() => setSubView('SERVICE_HISTORY')}
+        onBookNextService={onGoToBooking}
+      />
+    );
+  }
+
+  if (subView === 'SUPPORT_MAIN') {
+    return (
+      <SupportMainScreen
+        tickets={supportTickets}
+        onOpenHelpCenter={() => setSubView('HELP_CENTER')}
+        onOpenContactUs={() => setSubView('CONTACT_US')}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'HELP_CENTER') {
+    return (
+      <HelpCenterScreen
+        faqs={faqs}
+        onOpenContactUs={() => setSubView('CONTACT_US')}
+        onBack={() => setSubView('SUPPORT_MAIN')}
+      />
+    );
+  }
+
+  if (subView === 'CONTACT_US') {
+    return (
+      <ContactScreen
+        onBack={() => setSubView('SUPPORT_MAIN')}
+      />
+    );
+  }
+
+  if (subView === 'SECURITY') {
+    return (
+      <SecurityScreen
+        onBack={() => setSubView('SETTINGS')}
+      />
+    );
+  }
+
+  if (subView === 'TERMS_AND_PRIVACY') {
+    return (
+      <TermsAndPrivacyScreen
+        onBack={() => setSubView('SETTINGS')}
+      />
+    );
+  }
+
+  if (subView === 'SETTINGS') {
+    return (
+      <SettingsScreen
+        pushNotifications={pushNotificationsEnabled}
+        onTogglePushNotifications={setPushNotificationsEnabled}
+        selectedLanguage={selectedLanguage}
+        onSelectLanguage={setSelectedLanguage}
+        onOpenSecurity={() => setSubView('SECURITY')}
+        onOpenTermsAndPrivacy={() => setSubView('TERMS_AND_PRIVACY')}
+        onBack={() => setSubView('ACCOUNT')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <AccountScreen
+      user={profile}
+      onOpenEditProfile={() => setSubView('EDIT_PROFILE')}
+      onOpenServiceHistory={() => setSubView('SERVICE_HISTORY')}
+      onOpenSupport={() => setSubView('SUPPORT_MAIN')}
+      onOpenSettings={() => setSubView('SETTINGS')}
+      onLogout={handleLogout}
+    />
+  );
+};
 
 interface CustomerHomeScreenProps {
   onBookService?: () => void;
@@ -127,83 +266,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             onTrackStatus={() => setActiveTab('JOBCARD')}
           />
         );
-      case 'STORE':
-        return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>🛍️ EV OEM Spare Parts, Batteries & Accessories Store</Text>
-            <QuickActionsGrid
-              onBookService={onBookService}
-              onLiveTracking={onTrackService}
-              onOrderParts={onSpareParts}
-            />
-          </View>
-        );
       case 'PROFILE':
-        const profileUser = dashboardData?.user;
-        return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>👤 Profile & Account Details</Text>
-
-            {/* Profile Summary Card */}
-            <View style={styles.profileHeaderCard}>
-              <View style={styles.profileAvatarCircle}>
-                <Feather name="user" size={40} color="#2e5b02" />
-              </View>
-              <View style={styles.profileMeta}>
-                <Text style={styles.profileName}>{profileUser?.name || 'EV User'}</Text>
-                <Text style={styles.profileSubText}>{profileUser?.location || 'Indore'}</Text>
-                <View style={styles.customerBadge}>
-                  <Text style={styles.customerBadgeText}>VERIFIED CUSTOMER</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Details List Card */}
-            <View style={styles.detailsCard}>
-              {/* Full Name */}
-              <View style={styles.detailRow}>
-                <Feather name="user" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>FULL NAME</Text>
-                  <Text style={styles.detailValue}>{profileUser?.name || 'Rohan'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Email */}
-              <View style={styles.detailRow}>
-                <Feather name="mail" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>EMAIL ADDRESS</Text>
-                  <Text style={styles.detailValue}>{profileUser?.email || 'rohan@example.com'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Phone */}
-              <View style={styles.detailRow}>
-                <Feather name="phone" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>PHONE NUMBER</Text>
-                  <Text style={styles.detailValue}>{profileUser?.phone || '+91 9876543210'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Branch */}
-              <View style={styles.detailRow}>
-                <Feather name="home" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>REGISTERED BRANCH</Text>
-                  <Text style={styles.detailValue}>{profileUser?.branch || 'Bhopal Head Office & Wo'}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
+        return <ProfileTabFlow onGoToBooking={() => setActiveTab('BOOK')} />;
       case 'HOME':
       default:
         return (

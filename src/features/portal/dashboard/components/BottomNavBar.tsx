@@ -4,8 +4,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface BottomNavBarProps {
-  activeTab?: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE';
-  onTabChange?: (tab: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE') => void;
+  activeTab?: 'HOME' | 'BOOK' | 'PROFILE';
+  onTabChange?: (tab: 'HOME' | 'BOOK' | 'PROFILE') => void;
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
@@ -14,17 +14,15 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  const handlePress = (tab: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE') => {
+  const handlePress = (tab: 'HOME' | 'BOOK' | 'PROFILE') => {
     if (onTabChange) {
       onTabChange(tab);
     }
   };
 
-  const tabs: { key: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE'; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+  const tabs: { key: 'HOME' | 'BOOK' | 'PROFILE'; label: string; icon: keyof typeof Feather.glyphMap }[] = [
     { key: 'HOME', label: 'Home', icon: 'home' },
-    { key: 'VEHICLES', label: 'Tracking', icon: 'map-pin' },
     { key: 'BOOK', label: 'Service', icon: 'battery-charging' },
-    { key: 'STORE', label: 'Store', icon: 'shopping-bag' },
     { key: 'PROFILE', label: 'Account', icon: 'user' },
   ];
 
@@ -42,7 +40,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             <Feather
               name={tab.icon}
               size={22}
-              color={isActive ? '#95d03a' : '#9ca3af'}
+              color={isActive ? '#7ea920' : '#64748b'}
               style={styles.tabIcon}
             />
             <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>
@@ -60,29 +58,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
+    borderTopColor: '#f1f5f9',
     paddingTop: 12,
     paddingBottom: 10,
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
     justifyContent: 'space-around',
     alignItems: 'center',
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 16,
   },
   tabIcon: {
     marginBottom: 4,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#9ca3af',
+    color: '#64748b',
     fontFamily: 'PlusJakartaSans-Bold',
     letterSpacing: 0.2,
   },
   activeTabLabel: {
-    color: '#95d03a',
+    color: '#7ea920',
   },
 });
