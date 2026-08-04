@@ -231,6 +231,18 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             vehicle={primaryVehicle}
             onBack={() => setActiveTab('HOME')}
             onAddVehicle={async (payload) => { await addVehicle(payload); }}
+            onRemoveVehicle={() => {
+              import('react-native').then(({ Alert }) => {
+                Alert.alert(
+                  'Remove Vehicle',
+                  'Are you sure you want to remove this vehicle from your garage?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: () => setActiveTab('HOME') },
+                  ]
+                );
+              });
+            }}
           />
         );
       case 'BOOK':

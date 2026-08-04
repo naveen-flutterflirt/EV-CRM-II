@@ -23,22 +23,29 @@ interface RegisterFormProps {
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 
 const INDIAN_STATES = [
-  'Madhya Pradesh',
-  'Maharashtra',
-  'Delhi',
-  'Karnataka',
-  'Gujarat',
-  'Tamil Nadu',
-  'Telangana',
-  'Uttar Pradesh',
-  'Rajasthan',
-  'West Bengal',
-  'Punjab',
-  'Haryana',
-  'Kerala',
-  'Bihar',
-  'Odisha',
-  'Assam',
+  { id: 'st_mp_01', name: 'Madhya Pradesh' },
+  { id: 'st_mh_02', name: 'Maharashtra' },
+  { id: 'st_dl_03', name: 'Delhi' },
+  { id: 'st_ka_04', name: 'Karnataka' },
+  { id: 'st_gj_05', name: 'Gujarat' },
+  { id: 'st_tn_06', name: 'Tamil Nadu' },
+  { id: 'st_ts_07', name: 'Telangana' },
+  { id: 'st_up_08', name: 'Uttar Pradesh' },
+  { id: 'st_rj_09', name: 'Rajasthan' },
+  { id: 'st_wb_10', name: 'West Bengal' },
+];
+
+const SERVICE_CENTERS = [
+  { id: 'sc_bhopal_01', name: 'Bhopal HQ Service Center', stateName: 'Madhya Pradesh' },
+  { id: 'sc_indore_02', name: 'Indore EV Hub', stateName: 'Madhya Pradesh' },
+  { id: 'sc_jabalpur_03', name: 'Jabalpur Service Point', stateName: 'Madhya Pradesh' },
+  { id: 'sc_mumbai_04', name: 'Mumbai Central EV Center', stateName: 'Maharashtra' },
+  { id: 'sc_pune_05', name: 'Pune Mobility Workshop', stateName: 'Maharashtra' },
+  { id: 'sc_delhi_06', name: 'Delhi NCR Main Center', stateName: 'Delhi' },
+  { id: 'sc_blore_07', name: 'Bangalore Tech Park Center', stateName: 'Karnataka' },
+  { id: 'sc_ahmedabad_08', name: 'Ahmedabad EV Hub', stateName: 'Gujarat' },
+  { id: 'sc_chennai_09', name: 'Chennai Central Care', stateName: 'Tamil Nadu' },
+  { id: 'sc_hyderabad_10', name: 'Hyderabad Mobility Point', stateName: 'Telangana' },
 ];
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({
@@ -56,7 +63,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [email, setEmail] = useState('');
   const [isFleet, setIsFleet] = useState(false);
   const [streetAddress, setStreetAddress] = useState('');
+
+  // Dropdown States for State & Registered Center
   const [state, setState] = useState('');
+  const [stateId, setStateId] = useState('');
+  const [registeredCenter, setRegisteredCenter] = useState('');
+  const [registeredCenterId, setRegisteredCenterId] = useState('');
+
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [password, setPassword] = useState('');
@@ -65,7 +78,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isGenderModalVisible, setIsGenderModalVisible] = useState(false);
   const [isStateModalVisible, setIsStateModalVisible] = useState(false);
+  const [isCenterModalVisible, setIsCenterModalVisible] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  // Filter centers based on selected state
+  const availableCenters = state
+    ? SERVICE_CENTERS.filter((c) => c.stateName === state)
+    : SERVICE_CENTERS;
 
   const handleRegister = async () => {
     if (!gender) {
@@ -108,6 +127,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       isFleet,
       streetAddress: streetAddress.trim() || undefined,
       state: state || undefined,
+      state_id: stateId || state || undefined,
+      stateId: stateId || state || undefined,
+      registered_center_id: registeredCenterId || undefined,
+      registeredCenterId: registeredCenterId || undefined,
       city: city.trim() || undefined,
       pincode: pincode.trim() || undefined,
     };
@@ -127,6 +150,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           isFleet,
           streetAddress: streetAddress.trim(),
           state,
+          state_id: stateId,
+          registered_center_id: registeredCenterId,
           city: city.trim(),
           pincode: pincode.trim(),
         };
@@ -156,7 +181,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionHeader}>IDENTITY DETAILS</Text>
 
-          {/* Gender Selector & Customer Code (Auto-generated note) */}
+          {/* Gender Selector */}
           <Text style={styles.fieldLabel}>
             GENDER <Text style={styles.requiredAsterisk}>*</Text>
           </Text>
@@ -276,9 +301,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
         <View style={styles.divider} />
 
-        {/* SECTION 4: ADDRESS DETAILS */}
+        {/* SECTION 4: ADDRESS & REGISTRATION GEOGRAPHY (ERP Dropdowns) */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeader}>ADDRESS DETAILS</Text>
+          <Text style={styles.sectionHeader}>ADDRESS & LOCATION (ERP SCALED)</Text>
 
           <Text style={styles.fieldLabel}>STREET ADDRESS</Text>
           <View style={styles.inputContainer}>
@@ -291,15 +316,39 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             />
           </View>
 
-          <Text style={styles.fieldLabel}>STATE</Text>
+          {/* STATE Dropdown (ERP Styled) */}
+          <Text style={styles.fieldLabel}>
+            STATE <Text style={styles.requiredAsterisk}>*</Text>
+          </Text>
           <TouchableOpacity
             style={styles.dropdownContainer}
             onPress={() => setIsStateModalVisible(true)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.dropdownText, !state && styles.placeholderText]}>
-              {state || 'Select State'}
-            </Text>
+            <View style={styles.dropdownLeftRow}>
+              <Feather name="map-pin" size={18} color="#7a8a6b" style={{ marginRight: 10 }} />
+              <Text style={[styles.dropdownText, !state && styles.placeholderText]}>
+                {state || 'Select State...'}
+              </Text>
+            </View>
+            <Feather name="chevron-down" size={18} color="#64748b" />
+          </TouchableOpacity>
+
+          {/* NEAREST SERVICE CENTER Dropdown (ERP Styled) */}
+          <Text style={styles.fieldLabel}>
+            NEAREST SERVICE CENTER <Text style={styles.requiredAsterisk}>*</Text>
+          </Text>
+          <TouchableOpacity
+            style={styles.dropdownContainer}
+            onPress={() => setIsCenterModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.dropdownLeftRow}>
+              <Feather name="home" size={18} color="#7a8a6b" style={{ marginRight: 10 }} />
+              <Text style={[styles.dropdownText, !registeredCenter && styles.placeholderText]}>
+                {registeredCenter || (state ? 'Select Nearest Center...' : 'Select State first...')}
+              </Text>
+            </View>
             <Feather name="chevron-down" size={18} color="#64748b" />
           </TouchableOpacity>
 
@@ -307,7 +356,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.textInput}
-              placeholder={state ? 'Enter city name' : 'Select State First'}
+              placeholder="Enter city name"
               placeholderTextColor="#94a3b8"
               value={city}
               onChangeText={setCity}
@@ -418,7 +467,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         </TouchableOpacity>
       </Modal>
 
-      {/* State Picker Modal */}
+      {/* State Picker Modal (ERP Style) */}
       <Modal
         visible={isStateModalVisible}
         transparent={true}
@@ -428,26 +477,73 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '65%' }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select State</Text>
+              <Text style={styles.modalTitle}>Select State (state_id)</Text>
               <TouchableOpacity onPress={() => setIsStateModalVisible(false)}>
                 <Feather name="x" size={22} color="#334155" />
               </TouchableOpacity>
             </View>
             <FlatList
               data={INDIAN_STATES}
-              keyExtractor={(item) => item}
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.modalOption}
                   onPress={() => {
-                    setState(item);
+                    setState(item.name);
+                    setStateId(item.id);
+                    setRegisteredCenter('');
+                    setRegisteredCenterId('');
                     setIsStateModalVisible(false);
                   }}
                 >
-                  <Text style={[styles.modalOptionText, state === item && styles.modalOptionTextActive]}>
-                    {item}
-                  </Text>
-                  {state === item && <Feather name="check" size={18} color="#2e5b02" />}
+                  <View>
+                    <Text style={[styles.modalOptionText, state === item.name && styles.modalOptionTextActive]}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.modalSubIdText}>ID: {item.id}</Text>
+                  </View>
+                  {state === item.name && <Feather name="check" size={18} color="#2e5b02" />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Service Center Picker Modal (ERP Style) */}
+      <Modal
+        visible={isCenterModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsCenterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '65%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Nearest Center (registered_center_id)</Text>
+              <TouchableOpacity onPress={() => setIsCenterModalVisible(false)}>
+                <Feather name="x" size={22} color="#334155" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={availableCenters}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalOption}
+                  onPress={() => {
+                    setRegisteredCenter(item.name);
+                    setRegisteredCenterId(item.id);
+                    setIsCenterModalVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={[styles.modalOptionText, registeredCenter === item.name && styles.modalOptionTextActive]}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.modalSubIdText}>State: {item.stateName} | ID: {item.id}</Text>
+                  </View>
+                  {registeredCenter === item.name && <Feather name="check" size={18} color="#2e5b02" />}
                 </TouchableOpacity>
               )}
             />
@@ -483,7 +579,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#557924', // Brand dark lime green header text
+    color: '#557924',
     letterSpacing: 0.6,
     marginBottom: 16,
     textTransform: 'uppercase',
@@ -492,7 +588,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#475569', // Slate gray field label
+    color: '#475569',
     marginBottom: 6,
     letterSpacing: 0.3,
     fontFamily: 'PlusJakartaSans-Bold',
@@ -529,6 +625,11 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: 14,
     marginBottom: 14,
+  },
+  dropdownLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   dropdownText: {
     fontSize: 14,
@@ -596,7 +697,7 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Medium',
   },
   submitBtn: {
-    backgroundColor: '#a2e52c', // Brand vibrant green
+    backgroundColor: '#a2e52c',
     borderRadius: 14,
     height: 50,
     flexDirection: 'row',
@@ -656,7 +757,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   modalTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
     color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Bold',
@@ -678,5 +779,11 @@ const styles = StyleSheet.create({
     color: '#2e5b02',
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  modalSubIdText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
   },
 });

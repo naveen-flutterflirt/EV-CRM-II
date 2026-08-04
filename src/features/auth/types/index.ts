@@ -17,6 +17,10 @@ export interface RegisterPayload {
   isFleet?: boolean;
   streetAddress?: string;
   state?: string;
+  state_id?: string;
+  stateId?: string;
+  registered_center_id?: string;
+  registeredCenterId?: string;
   city?: string;
   pincode?: string;
 }
