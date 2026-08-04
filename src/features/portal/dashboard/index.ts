@@ -7,7 +7,6 @@ export * from './components/QuickActionsGrid';
 export * from './components/RecentActivityCard';
 export * from './components/BatteryRangeCard';
 export * from './components/BottomNavBar';
-export * from './components/PortalHeader';
 export * from './components/PortalLayout';
 export * from './screens/CustomerHomeScreen';
 

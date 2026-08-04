@@ -1,91 +1,162 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card } from '../../../../common/components/Card';
 
 interface BatteryRangeCardProps {
-  batteryPct?: number; // e.g. 84
-  rangeKm?: number; // e.g. 112
+  batteryPct?: number; // e.g. 86
+  rangeKm?: number; // e.g. 92
+  odometerKm?: number; // default e.g. 14350
+  lastSyncedText?: string; // default e.g. "2 min ago"
 }
 
 export const BatteryRangeCard: React.FC<BatteryRangeCardProps> = ({
-  batteryPct = 84,
-  rangeKm = 112,
+  batteryPct = 86,
+  rangeKm = 92,
+  odometerKm = 14350,
+  lastSyncedText = '2 min ago',
 }) => {
+  // Format odometer with comma separator
+  const formattedOdo = odometerKm.toLocaleString('en-US');
+
   return (
-    <Card style={styles.cardContainer}>
-      {/* Big Percentage Readout */}
-      <View style={styles.valueRow}>
-        <Text style={styles.numberText}>{batteryPct}</Text>
-        <Text style={styles.percentSymbol}>%</Text>
-      </View>
-
-      {/* Metric Label */}
-      <Text style={styles.metricLabel}>
-        CURRENT RANGE • {rangeKm} KM
-      </Text>
-
-      {/* Dashed Wave Graph Line */}
-      <View style={styles.waveContainer}>
-        <View style={styles.dashedCurve}>
-          <Text style={styles.dashedCurveText}>
-            - - - - - - - - - - - - - - - - - - - - - - - - -
-          </Text>
+    <View style={styles.cardContainer}>
+      {/* Left Column: Circular SOC Ring */}
+      <View style={styles.socContainer}>
+        <View style={styles.outerRing}>
+          <View style={styles.innerCircle}>
+            <Text style={styles.socPercentage}>{batteryPct}%</Text>
+            <Text style={styles.socLabel}>SOC</Text>
+          </View>
         </View>
       </View>
-    </Card>
+
+      {/* Right Column: Status and Info */}
+      <View style={styles.metricsContainer}>
+        {/* Estimated Range */}
+        <View style={styles.metricSection}>
+          <Text style={styles.metricLabel}>ESTIMATED RANGE</Text>
+          <Text style={styles.rangeValue}>
+            {rangeKm} km <Text style={styles.rangeUnit}>remaining</Text>
+          </Text>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Odometer */}
+        <View style={styles.metricSection}>
+          <Text style={styles.metricLabel}>ODOMETER</Text>
+          <Text style={styles.odoValue}>{formattedOdo} km</Text>
+        </View>
+
+        {/* Last Synced Sync Status */}
+        <View style={styles.syncRow}>
+          <View style={styles.syncDot} />
+          <Text style={styles.syncText}>Last synced: {lastSyncedText}</Text>
+        </View>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   cardContainer: {
-    padding: 24,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    borderColor: '#e4e4e7',
-    borderWidth: 1,
+    flexDirection: 'row',
+    backgroundColor: '#e6f0d8', // Premium light pastel green card background
+    borderRadius: 28,
+    padding: 20,
     alignItems: 'center',
     marginBottom: 20,
+    width: '100%',
   },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 4,
+  socContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
   },
-  numberText: {
-    fontSize: 54,
+  outerRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#e6f0d8',
+    borderColor: '#4c7a18', // dark green progress ring color
+    borderWidth: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  innerCircle: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#e6f0d8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  socPercentage: {
+    fontSize: 26,
     fontWeight: '700',
-    color: '#3f6212',
-    letterSpacing: -1,
+    color: '#1a2b0c',
+    fontFamily: 'PlusJakartaSans-Bold',
   },
-  percentSymbol: {
-    fontSize: 24,
+  socLabel: {
+    fontSize: 10,
+    color: '#7a8a6b',
     fontWeight: '700',
-    color: '#3f6212',
-    marginLeft: 4,
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginTop: 2,
+  },
+  metricsContainer: {
+    flex: 1,
+  },
+  metricSection: {
+    marginVertical: 4,
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '700',
-    color: '#71717a',
-    letterSpacing: 1,
-    marginTop: 4,
-    marginBottom: 20,
+    color: '#7a8a6b',
+    letterSpacing: 0.8,
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 2,
   },
-  waveContainer: {
-    width: '100%',
-    alignItems: 'center',
-    overflow: 'hidden',
-    height: 18,
-    justifyContent: 'center',
-  },
-  dashedCurve: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  dashedCurveText: {
-    color: '#84cc16',
+  rangeValue: {
     fontSize: 16,
-    fontWeight: '900',
-    letterSpacing: 2,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  rangeUnit: {
+    fontSize: 13,
+    color: '#7a8a6b',
+    fontWeight: '400',
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#c6d8b2', // soft green border separator
+    marginVertical: 6,
+    width: '100%',
+  },
+  odoValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4c7a18',
+    marginRight: 6,
+  },
+  syncText: {
+    fontSize: 10,
+    color: '#7a8a6b',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
 });

@@ -1,8 +1,12 @@
 export interface UserProfile {
   id?: string;
+  customerId?: string;
   name: string;
   location: string;
   avatarUrl?: string;
+  branch?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface CustomerVehicleStatus {

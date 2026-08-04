@@ -8,16 +8,19 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Cookies from 'js-cookie';
 import { useAuthHook } from '../hooks/useAuth';
 
 interface LoginFormProps {
   onLoginSuccess: (user: any) => void;
   onNavigateToRegister: () => void;
+  onForgotPasswordPress?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
   onNavigateToRegister,
+  onForgotPasswordPress,
 }) => {
   const { login, loading, error } = useAuthHook();
   const [email, setEmail] = useState('');
@@ -42,6 +45,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     try {
       const res = await login({ email, password });
       if (res.user) {
+        if (res.token) {
+          Cookies.set("token", res.token, { expires: 7 });
+          Cookies.set("userRole", res.user.role?.roleCode || "customer", { expires: 7 });
+        }
         onLoginSuccess(res.user);
       }
     } catch (err: any) {
@@ -100,7 +107,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </View>
 
         {/* Forgot Password */}
-        <TouchableOpacity style={styles.forgotPasswordContainer}>
+        <TouchableOpacity 
+          style={styles.forgotPasswordContainer}
+          onPress={onForgotPasswordPress}
+        >
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
 

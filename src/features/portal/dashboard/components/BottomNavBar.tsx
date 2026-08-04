@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface BottomNavBarProps {
   activeTab?: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE';
@@ -10,27 +12,26 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   activeTab = 'HOME',
   onTabChange,
 }) => {
-  const [currentTab, setCurrentTab] = useState(activeTab);
+  const insets = useSafeAreaInsets();
 
   const handlePress = (tab: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE') => {
-    setCurrentTab(tab);
     if (onTabChange) {
       onTabChange(tab);
     }
   };
 
-  const tabs: { key: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE'; label: string; icon: string }[] = [
-    { key: 'HOME', label: 'HOME', icon: '🏠' },
-    { key: 'VEHICLES', label: 'VEHICLES', icon: '🚘' },
-    { key: 'BOOK', label: 'BOOK', icon: '📅' },
-    { key: 'STORE', label: 'STORE', icon: '🛍️' },
-    { key: 'PROFILE', label: 'PROFILE', icon: '👤' },
+  const tabs: { key: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE'; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+    { key: 'HOME', label: 'Home', icon: 'home' },
+    { key: 'VEHICLES', label: 'Tracking', icon: 'map-pin' },
+    { key: 'BOOK', label: 'Service', icon: 'battery-charging' },
+    { key: 'STORE', label: 'Store', icon: 'shopping-bag' },
+    { key: 'PROFILE', label: 'Account', icon: 'user' },
   ];
 
   return (
-    <View style={styles.navBar}>
+    <View style={[styles.navBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       {tabs.map((tab) => {
-        const isActive = currentTab === tab.key;
+        const isActive = activeTab === tab.key;
         return (
           <TouchableOpacity
             key={tab.key}
@@ -38,9 +39,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             onPress={() => handlePress(tab.key)}
             activeOpacity={0.8}
           >
-            <Text style={[styles.tabIcon, isActive && styles.activeTabIcon]}>
-              {tab.icon}
-            </Text>
+            <Feather
+              name={tab.icon}
+              size={22}
+              color={isActive ? '#95d03a' : '#9ca3af'}
+              style={styles.tabIcon}
+            />
             <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>
               {tab.label}
             </Text>
@@ -56,8 +60,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e4e4e7',
-    paddingVertical: 10,
+    borderTopColor: '#f4f4f5',
+    paddingTop: 12,
+    paddingBottom: 10,
     paddingHorizontal: 8,
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -68,20 +73,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   tabIcon: {
-    fontSize: 18,
     marginBottom: 4,
-    opacity: 0.6,
-  },
-  activeTabIcon: {
-    opacity: 1,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#71717a',
-    letterSpacing: 0.5,
+    color: '#9ca3af',
+    fontFamily: 'PlusJakartaSans-Bold',
+    letterSpacing: 0.2,
   },
   activeTabLabel: {
-    color: '#84cc16',
+    color: '#95d03a',
   },
 });

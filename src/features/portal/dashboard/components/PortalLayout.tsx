@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
-import { PortalHeader } from './PortalHeader';
+import { PortalHeader } from '../../../../common/components';
 import { BottomNavBar } from './BottomNavBar';
 import { UserProfile } from '../types';
 
 interface PortalLayoutProps {
   children: React.ReactNode;
-  activeTab?: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE';
-  onTabChange?: (tab: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE') => void;
+  activeTab?: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD';
+  onTabChange?: (tab: 'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD') => void;
   user?: UserProfile;
   headerTitle?: string;
   refreshing?: boolean;
@@ -34,6 +34,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
       case 'BOOK': return 'Book EV Service';
       case 'STORE': return 'EV Spare Parts Store';
       case 'PROFILE': return 'Account & Profile';
+      case 'JOBCARD': return 'Job Card Status';
       default: return 'Home';
     }
   };
@@ -67,7 +68,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
       </ScrollView>
 
       {/* 3. Fixed Global Bottom Footer / Tab Navigation Bar (Stays Fixed) */}
-      <BottomNavBar activeTab={activeTab} onTabChange={onTabChange} />
+      <BottomNavBar activeTab={activeTab === 'JOBCARD' ? 'HOME' : activeTab} onTabChange={onTabChange} />
     </View>
   );
 };

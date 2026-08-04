@@ -1,29 +1,16 @@
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchCustomerDashboardApi } from "../api";
-import { CustomerDashboardData } from "../types";
 
 export function useCustomerDashboardHook() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dashboardData, setDashboardData] = useState<CustomerDashboardData | null>(null);
+  const { data: dashboardData, isLoading: loading, error, refetch: refreshDashboard } = useQuery({
+    queryKey: ["portal", "customer", "dashboard"],
+    queryFn: fetchCustomerDashboardApi,
+  });
 
-  const loadDashboard = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchCustomerDashboardApi();
-      setDashboardData(data);
-      return data;
-    } catch (err: any) {
-      setError(err.message || "Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-    }
+  return {
+    dashboardData,
+    loading,
+    error: error ? error.message : null,
+    refreshDashboard
   };
-
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  return { dashboardData, loading, error, refreshDashboard: loadDashboard };
 }

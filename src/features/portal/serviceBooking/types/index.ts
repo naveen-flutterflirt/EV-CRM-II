@@ -5,9 +5,11 @@ export interface ServiceSlot {
 }
 
 export interface BookingPayload {
+  customerId: string;
   vehicleId: string;
-  serviceType: string;
-  date: string;
-  slotId: string;
-  pickupRequired: boolean;
+  centerId: string;
+  scheduledAt: string; // ISO DateTime string
+  channel?: string;
+  jobType?: string;
+  complaintText?: string;
 }

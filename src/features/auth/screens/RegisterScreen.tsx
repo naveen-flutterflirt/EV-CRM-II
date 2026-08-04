@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { RegisterForm } from '../components/RegisterForm';
 
 interface RegisterScreenProps {
@@ -12,8 +12,16 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   onNavigateToLogin,
 }) => {
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <ScrollView 
+      contentContainerStyle={styles.scrollContainer}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.container}>
+        <Image 
+          source={require('../../../../assets/images/logo.png')} 
+          style={styles.logo} 
+          resizeMode="contain" 
+        />
         <RegisterForm
           onRegisterSuccess={onRegisterSuccess}
           onNavigateToLogin={onNavigateToLogin}
@@ -26,12 +34,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
   },
   container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
     alignItems: 'center',
-    padding: 20,
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    marginBottom: 20,
   },
 });

@@ -1,5 +1,6 @@
 export interface CustomerProfileSetup {
   fullName: string;
+  phone?: string;
   email?: string;
   address?: string;
   city?: string;
@@ -12,4 +13,20 @@ export interface SavedAddress {
   addressLine: string;
   pincode: string;
   isDefault: boolean;
+}
+
+export interface VehicleModelMeta {
+  modelId: string;
+  modelName: string;
+}
+
+export interface VehicleBrandMeta {
+  manufacturerId: string;
+  name: string;
+  models: VehicleModelMeta[];
+}
+
+export interface VehicleSetupPayload {
+  modelId: string;
+  vin?: string;
 }

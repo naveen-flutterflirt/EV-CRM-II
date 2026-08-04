@@ -4,3 +4,5 @@ export * from './DeleteConfirmModal';
 export * from './Badge';
 export * from './Card';
 export * from './Header';
+export * from './LoadingScreen';
+export * from './PortalHeader';
