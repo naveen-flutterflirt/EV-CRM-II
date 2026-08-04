@@ -5,11 +5,13 @@ import { LoginForm } from '../components/LoginForm';
 interface LoginScreenProps {
   onLoginSuccess: (user: any) => void;
   onNavigateToRegister: () => void;
+  onForgotPasswordPress?: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   onNavigateToRegister,
+  onForgotPasswordPress,
 }) => {
   return (
     <ScrollView 
@@ -25,6 +27,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <LoginForm
           onLoginSuccess={onLoginSuccess}
           onNavigateToRegister={onNavigateToRegister}
+          onForgotPasswordPress={onForgotPasswordPress}
         />
       </View>
     </ScrollView>

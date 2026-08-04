@@ -1,6 +1,8 @@
 import api from "../../../../config/axios";
 import { CustomerDashboardData } from "../types";
 
+
+
 export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData> {
   try {
     const [userRes, vehicleRes, activitiesRes] = await Promise.allSettled([
@@ -29,23 +31,9 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
         phone: userData?.phone || "+91 9876543210",
       },
       vehicle: {
-        id: firstVehicle?.id || firstVehicle?.vehicleId || "veh_450x",
-        brand: (() => {
-          const rawBrand = firstVehicle?.brand || firstVehicle?.manufacturerName || firstVehicle?.model?.manufacturer;
-          if (!rawBrand) return "Ather";
-          if (typeof rawBrand === 'object') {
-            return (rawBrand as any).manufacturerName || (rawBrand as any).name || "Ather";
-          }
-          return String(rawBrand);
-        })(),
-        model: (() => {
-          const rawModel = firstVehicle?.modelName || firstVehicle?.model;
-          if (!rawModel) return "450X";
-          if (typeof rawModel === 'object') {
-            return (rawModel as any).modelName || (rawModel as any).name || "450X";
-          }
-          return String(rawModel);
-        })(),
+        id: firstVehicle?.id || firstVehicle?.vehicleId || "",
+        brand: firstVehicle?.model?.manufacturer?.name || "",
+        model: firstVehicle?.model?.modelName || "",
         warrantyStatus: firstVehicle?.warrantyStatus || "WARRANTY ACTIVE",
         batteryHealthPct: firstVehicle?.batteryHealthPct || 86,
         currentRangeKm: firstVehicle?.currentRangeKm || 92,

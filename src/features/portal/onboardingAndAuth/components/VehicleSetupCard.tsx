@@ -22,34 +22,6 @@ interface VehicleSetupCardProps {
   onBack: () => void;
 }
 
-const FALLBACK_BRANDS: VehicleBrandMeta[] = [
-  {
-    manufacturerId: 'man_ather',
-    name: 'Ather',
-    models: [
-      { modelId: 'model_450x', modelName: '450X Gen 3' },
-      { modelId: 'model_450plus', modelName: '450 Plus' },
-      { modelId: 'model_apex', modelName: '450 Apex' },
-    ],
-  },
-  {
-    manufacturerId: 'man_ola',
-    name: 'Ola',
-    models: [
-      { modelId: 'model_s1pro', modelName: 'S1 Pro Gen 2' },
-      { modelId: 'model_s1air', modelName: 'S1 Air' },
-      { modelId: 'model_s1x', modelName: 'S1 X' },
-    ],
-  },
-  {
-    manufacturerId: 'man_tvs',
-    name: 'TVS',
-    models: [
-      { modelId: 'model_iqube', modelName: 'iQube S' },
-    ],
-  },
-];
-
 export const VehicleSetupCard: React.FC<VehicleSetupCardProps> = ({
   onComplete,
   onSkip,
@@ -67,7 +39,7 @@ export const VehicleSetupCard: React.FC<VehicleSetupCardProps> = ({
   const addVehicleMutation = useAddCustomerVehicle();
   const loading = addVehicleMutation.isPending;
 
-  const brands = vehicleMeta && vehicleMeta.length > 0 ? vehicleMeta : FALLBACK_BRANDS;
+  const brands = vehicleMeta || [];
 
   const handleAddVehicle = async () => {
     if (!selectedModel) {

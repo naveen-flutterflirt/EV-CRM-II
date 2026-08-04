@@ -258,10 +258,6 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                 setActiveTab('JOBCARD');
                 if (onTrackService) onTrackService();
               }}
-              onOrderParts={() => {
-                setActiveTab('STORE');
-                if (onSpareParts) onSpareParts();
-              }}
               onEmergencyRsa={() => {
                 import('react-native').then(({ Alert }) => {
                   Alert.alert(

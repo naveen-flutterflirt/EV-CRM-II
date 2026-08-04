@@ -47,16 +47,18 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
       {/* Row 2 */}
       <View style={styles.row}>
         {/* Order Parts */}
-        <TouchableOpacity
-          style={styles.actionCard}
-          onPress={onOrderParts}
-          activeOpacity={0.8}
-        >
-          <View style={styles.iconCircle}>
-            <Feather name="shopping-bag" size={18} color="#2e5b02" />
-          </View>
-          <Text style={styles.cardLabel}>Order parts</Text>
-        </TouchableOpacity>
+        {onOrderParts ? (
+          <TouchableOpacity
+            style={styles.actionCard}
+            onPress={onOrderParts}
+            activeOpacity={0.8}
+          >
+            <View style={styles.iconCircle}>
+              <Feather name="shopping-bag" size={18} color="#2e5b02" />
+            </View>
+            <Text style={styles.cardLabel}>Order parts</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Emergency RSA */}
         <TouchableOpacity

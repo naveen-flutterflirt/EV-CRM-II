@@ -6,12 +6,15 @@ import {
   Text,
   View,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
+import { useCustomerVehicles } from '../src/features/portal/myVehicles/hooks/useVehicles';
 import { WelcomeScreen } from '../src/features/auth/screens/WelcomeScreen';
 import { LoginScreen } from '../src/features/auth/screens/LoginScreen';
 import { RegisterScreen } from '../src/features/auth/screens/RegisterScreen';
 import { EmailVerificationScreen } from '../src/features/auth/screens/EmailVerificationScreen';
+import { ForgotPasswordScreen } from '../src/features/auth/screens/ForgotPasswordScreen';
 import { ProfileSetupCard, VehicleSetupCard } from '../src/features/portal/onboardingAndAuth';
 import { LoadingScreen } from '../src/common/components';
 import { VehicleCard } from '../src/features/portal/myVehicles/components/VehicleCard';
@@ -19,15 +22,18 @@ import { LiveTrackingCard } from '../src/features/portal/liveTracking/components
 import { DashboardStatsCard } from '../src/features/platform/dashboard/components/DashboardStatsCard';
 
 export default function HomeScreen(): React.JSX.Element {
-  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'setup-vehicle' | 'onboarding-loading' | 'home'>('welcome');
+  const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'setup-vehicle' | 'onboarding-loading' | 'home' | 'forgot-password'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
 
+  const { data: vehicles, isLoading: loadingVehicles } = useCustomerVehicles({
+    enabled: !!currentUser
+  });
+
   const handleLoginSuccess = (user: any) => {
     setIsSignupFlow(false);
-    setPendingUser(user);
-    setCurrentScreen('email-verification');
+    completeAuthentication(user);
   };
 
   const handleRegisterSuccess = (user: any) => {
@@ -84,6 +90,14 @@ export default function HomeScreen(): React.JSX.Element {
     : currentUser?.role?.roleCode || 'customer').toLowerCase();
 
   const userDisplayName = currentUser?.name || currentUser?.fullName || currentUser?.username || 'EV User';
+
+  if (currentScreen === 'forgot-password') {
+    return (
+      <ForgotPasswordScreen
+        onNavigateToLogin={() => setCurrentScreen('login')}
+      />
+    );
+  }
 
   if (currentScreen === 'welcome') {
     return (
@@ -145,6 +159,7 @@ export default function HomeScreen(): React.JSX.Element {
         <LoginScreen
           onLoginSuccess={handleLoginSuccess}
           onNavigateToRegister={() => setCurrentScreen('register')}
+          onForgotPasswordPress={() => setCurrentScreen('forgot-password')}
         />
       )}
 
@@ -175,17 +190,13 @@ export default function HomeScreen(): React.JSX.Element {
           {userRoleCode === 'customer' ? (
             <View style={styles.contentSection}>
               <Text style={styles.sectionHeading}>🟢 Customer Portal Overview</Text>
-              <VehicleCard
-                vehicle={{
-                  id: 'veh_101',
-                  userId: currentUser?.id || currentUser?.userId,
-                  brand: 'Ather',
-                  model: '450X Gen 3',
-                  vin: 'ATH450X2024MP04',
-                  registrationNumber: 'MP04-EV-1024',
-                  batteryHealthPct: 96,
-                }}
-              />
+              {loadingVehicles ? (
+                <ActivityIndicator size="small" color="#95d03a" />
+              ) : vehicles && vehicles.length > 0 ? (
+                <VehicleCard vehicle={vehicles[0]} />
+              ) : (
+                <VehicleCard />
+              )}
               <LiveTrackingCard />
             </View>
           ) : (

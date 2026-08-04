@@ -13,11 +13,13 @@ import { useAuthHook } from '../hooks/useAuth';
 interface LoginFormProps {
   onLoginSuccess: (user: any) => void;
   onNavigateToRegister: () => void;
+  onForgotPasswordPress?: () => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({
   onLoginSuccess,
   onNavigateToRegister,
+  onForgotPasswordPress,
 }) => {
   const { login, loading, error } = useAuthHook();
   const [email, setEmail] = useState('');
@@ -100,7 +102,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         </View>
 
         {/* Forgot Password */}
-        <TouchableOpacity style={styles.forgotPasswordContainer}>
+        <TouchableOpacity 
+          style={styles.forgotPasswordContainer}
+          onPress={onForgotPasswordPress}
+        >
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
         </TouchableOpacity>
 

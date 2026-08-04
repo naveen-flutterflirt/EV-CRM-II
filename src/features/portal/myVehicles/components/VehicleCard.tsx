@@ -2,11 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Vehicle } from '../../../../common/types';
 
-export const VehicleCard: React.FC<{ vehicle?: Vehicle }> = ({ vehicle }) => {
+export const VehicleCard: React.FC<{ vehicle?: any }> = ({ vehicle }) => {
+  const brand = vehicle?.model?.manufacturer?.name || '';
+  const model = vehicle?.model?.modelName || '';
+  const regNo = vehicle?.registrationNo || vehicle?.registrationNumber || '';
+
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>{vehicle?.brand || 'Ather'} {vehicle?.model || '450X'}</Text>
-      <Text style={styles.subtitle}>{vehicle?.registrationNumber || 'MP04-EV-1024'}</Text>
+      <Text style={styles.title}>{brand ? `${brand} ${model}`.trim() : model || 'No Vehicle'}</Text>
+      {regNo ? <Text style={styles.subtitle}>{regNo}</Text> : null}
       <View style={styles.badge}>
         <Text style={styles.badgeText}>Active Warranty</Text>
       </View>
