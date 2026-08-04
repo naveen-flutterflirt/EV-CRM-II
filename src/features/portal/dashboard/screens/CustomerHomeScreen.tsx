@@ -230,7 +230,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
           <VehicleDetailsScreen
             vehicle={primaryVehicle}
             onBack={() => setActiveTab('HOME')}
-            onAddVehicle={addVehicle}
+            onAddVehicle={async (payload) => { await addVehicle(payload); }}
           />
         );
       case 'BOOK':

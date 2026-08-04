@@ -24,15 +24,14 @@ export const PartItemCard: React.FC<PartItemCardProps> = ({
 }) => {
   const [addedAnimation, setAddedAnimation] = useState(false);
 
-  const numericPrice = typeof part.mrp === 'string' ? parseFloat(part.mrp) : part.mrp;
+  const numericPrice = typeof part.mrp === 'string' ? parseFloat(part.mrp) : (part.mrp ?? (part.pricePaise ? part.pricePaise / 100 : 0));
   const formattedPrice = isNaN(numericPrice) || numericPrice === undefined || numericPrice === null
     ? '₹ --'
     : `₹${numericPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const categoryName = part.category?.categoryName || 'Ather 450X';
+  const categoryName = typeof part.category === 'object' ? part.category?.categoryName || 'Ather 450X' : (part.category || 'Ather 450X');
 
   const handlePlusClick = (e: any) => {
-    e.stopPropagation();
     if (onAddToCart) {
       onAddToCart(part);
     }
@@ -58,7 +57,7 @@ export const PartItemCard: React.FC<PartItemCardProps> = ({
       {/* Middle Info */}
       <View style={styles.middleInfo}>
         <Text style={styles.titleText} numberOfLines={1}>
-          {part.partName}
+          {part.partName || part.name || 'Spare Part'}
         </Text>
         <Text style={styles.fitsText} numberOfLines={1}>
           Fits: {categoryName}

@@ -4,8 +4,8 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export interface BottomNavBarProps {
-  activeTab?: 'HOME' | 'BOOK' | 'PROFILE';
-  onTabChange?: (tab: 'HOME' | 'BOOK' | 'PROFILE') => void;
+  activeTab?: 'HOME' | 'BOOK' | 'PROFILE' | 'VEHICLES' | 'STORE' | string;
+  onTabChange?: (tab: any) => void;
 }
 
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
