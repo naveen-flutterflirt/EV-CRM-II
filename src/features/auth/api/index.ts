@@ -31,3 +31,65 @@ export async function resetPasswordApi(payload: ResetPasswordPayload): Promise<{
   const res = await api.post("/auth/reset-password", payload);
   return res.data;
 }
+
+export interface StateItem {
+  id: string;
+  name: string;
+  gstStateCode?: string;
+  region?: string;
+}
+
+export interface ServiceCenterItem {
+  id: string;
+  name: string;
+  city?: string;
+  stateId?: string;
+  stateName?: string;
+}
+
+export async function fetchStatesApi(): Promise<StateItem[]> {
+  try {
+    const res = await api.get("/states");
+    const rawData = res.data?.data || res.data;
+    const items = Array.isArray(rawData) ? rawData : (rawData?.rows || []);
+    if (Array.isArray(items)) {
+      return items.map((item: any) => ({
+        id: item.stateId || item.id,
+        name: item.stateName || item.name,
+        gstStateCode: item.gstStateCode,
+        region: item.region,
+      }));
+    }
+    return [];
+  } catch (err: any) {
+    console.error("❌ fetchStatesApi error:", err);
+    return [];
+  }
+}
+
+export async function fetchServiceCentersApi(stateId?: string, stateName?: string): Promise<ServiceCenterItem[]> {
+  try {
+    let url = "/service-centers?limit=100";
+    if (stateId) {
+      url += `&stateId=${encodeURIComponent(stateId)}`;
+    } else if (stateName) {
+      url += `&stateName=${encodeURIComponent(stateName)}`;
+    }
+    const res = await api.get(url);
+    const rawData = res.data?.data || res.data;
+    const items = Array.isArray(rawData) ? rawData : (rawData?.rows || []);
+    if (Array.isArray(items)) {
+      return items.map((item: any) => ({
+        id: item.centerId || item.id,
+        name: item.centerName || item.name,
+        city: item.city || "",
+        stateId: item.stateId || item.state?.stateId || "",
+        stateName: item.state?.stateName || stateName || "",
+      }));
+    }
+    return [];
+  } catch (err: any) {
+    console.error("❌ fetchServiceCentersApi error:", err);
+    return [];
+  }
+}

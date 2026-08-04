@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import Cookies from 'js-cookie';
 import { useAuthHook } from '../hooks/useAuth';
 import { RegisterPayload } from '../types';
+import { fetchStatesApi, fetchServiceCentersApi, StateItem, ServiceCenterItem } from '../api';
 
 interface RegisterFormProps {
   onRegisterSuccess: (user: any) => void;
@@ -21,32 +22,6 @@ interface RegisterFormProps {
 }
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
-
-const INDIAN_STATES = [
-  { id: 'st_mp_01', name: 'Madhya Pradesh' },
-  { id: 'st_mh_02', name: 'Maharashtra' },
-  { id: 'st_dl_03', name: 'Delhi' },
-  { id: 'st_ka_04', name: 'Karnataka' },
-  { id: 'st_gj_05', name: 'Gujarat' },
-  { id: 'st_tn_06', name: 'Tamil Nadu' },
-  { id: 'st_ts_07', name: 'Telangana' },
-  { id: 'st_up_08', name: 'Uttar Pradesh' },
-  { id: 'st_rj_09', name: 'Rajasthan' },
-  { id: 'st_wb_10', name: 'West Bengal' },
-];
-
-const SERVICE_CENTERS = [
-  { id: 'sc_bhopal_01', name: 'Bhopal HQ Service Center', stateName: 'Madhya Pradesh' },
-  { id: 'sc_indore_02', name: 'Indore EV Hub', stateName: 'Madhya Pradesh' },
-  { id: 'sc_jabalpur_03', name: 'Jabalpur Service Point', stateName: 'Madhya Pradesh' },
-  { id: 'sc_mumbai_04', name: 'Mumbai Central EV Center', stateName: 'Maharashtra' },
-  { id: 'sc_pune_05', name: 'Pune Mobility Workshop', stateName: 'Maharashtra' },
-  { id: 'sc_delhi_06', name: 'Delhi NCR Main Center', stateName: 'Delhi' },
-  { id: 'sc_blore_07', name: 'Bangalore Tech Park Center', stateName: 'Karnataka' },
-  { id: 'sc_ahmedabad_08', name: 'Ahmedabad EV Hub', stateName: 'Gujarat' },
-  { id: 'sc_chennai_09', name: 'Chennai Central Care', stateName: 'Tamil Nadu' },
-  { id: 'sc_hyderabad_10', name: 'Hyderabad Mobility Point', stateName: 'Telangana' },
-];
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({
   onRegisterSuccess,
@@ -70,6 +45,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [registeredCenter, setRegisteredCenter] = useState('');
   const [registeredCenterId, setRegisteredCenterId] = useState('');
 
+  // Dynamic API Data States
+  const [statesList, setStatesList] = useState<StateItem[]>([]);
+  const [centersList, setCentersList] = useState<ServiceCenterItem[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCenters, setLoadingCenters] = useState(false);
+
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [password, setPassword] = useState('');
@@ -81,10 +62,75 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [isCenterModalVisible, setIsCenterModalVisible] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  // Filter centers based on selected state
-  const availableCenters = state
-    ? SERVICE_CENTERS.filter((c) => c.stateName === state)
-    : SERVICE_CENTERS;
+  // Load States from API on Mount
+  useEffect(() => {
+    let isMounted = true;
+    async function loadStates() {
+      setLoadingStates(true);
+      const data = await fetchStatesApi();
+      if (isMounted) {
+        if (data && data.length > 0) {
+          setStatesList(data);
+        } else {
+          setStatesList([
+            { id: 'st_mp_01', name: 'Madhya Pradesh' },
+            { id: 'st_mh_02', name: 'Maharashtra' },
+            { id: 'st_dl_03', name: 'Delhi' },
+            { id: 'st_ka_04', name: 'Karnataka' },
+            { id: 'st_gj_05', name: 'Gujarat' },
+            { id: 'st_tn_06', name: 'Tamil Nadu' },
+            { id: 'st_ts_07', name: 'Telangana' },
+          ]);
+        }
+        setLoadingStates(false);
+      }
+    }
+    loadStates();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Load Service Centers from API when State changes
+  useEffect(() => {
+    let isMounted = true;
+    if (!state && !stateId) {
+      setCentersList([]);
+      setRegisteredCenter('');
+      setRegisteredCenterId('');
+      return;
+    }
+
+    async function loadCenters() {
+      setLoadingCenters(true);
+      const data = await fetchServiceCentersApi(stateId, state);
+      if (isMounted) {
+        if (data && data.length > 0) {
+          setCentersList(data);
+        } else {
+          const fallback = [
+            { id: 'sc_bhopal_01', name: 'Bhopal HQ Service Center', stateName: 'Madhya Pradesh' },
+            { id: 'sc_indore_02', name: 'Indore EV Hub', stateName: 'Madhya Pradesh' },
+            { id: 'sc_jabalpur_03', name: 'Jabalpur Service Point', stateName: 'Madhya Pradesh' },
+            { id: 'sc_mumbai_04', name: 'Mumbai Central EV Center', stateName: 'Maharashtra' },
+            { id: 'sc_pune_05', name: 'Pune Mobility Workshop', stateName: 'Maharashtra' },
+            { id: 'sc_delhi_06', name: 'Delhi NCR Main Center', stateName: 'Delhi' },
+            { id: 'sc_blore_07', name: 'Bangalore Tech Park Center', stateName: 'Karnataka' },
+            { id: 'sc_ahmedabad_08', name: 'Ahmedabad EV Hub', stateName: 'Gujarat' },
+            { id: 'sc_chennai_09', name: 'Chennai Central Care', stateName: 'Tamil Nadu' },
+            { id: 'sc_hyderabad_10', name: 'Hyderabad Mobility Point', stateName: 'Telangana' },
+          ].filter(c => c.stateName === state);
+          setCentersList(fallback);
+        }
+        setLoadingCenters(false);
+      }
+    }
+
+    loadCenters();
+    return () => {
+      isMounted = false;
+    };
+  }, [stateId, state]);
 
   const handleRegister = async () => {
     if (!gender) {
@@ -339,17 +385,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             NEAREST SERVICE CENTER <Text style={styles.requiredAsterisk}>*</Text>
           </Text>
           <TouchableOpacity
-            style={styles.dropdownContainer}
-            onPress={() => setIsCenterModalVisible(true)}
+            style={[styles.dropdownContainer, !state && styles.disabledDropdown]}
+            onPress={() => {
+              if (state) {
+                setIsCenterModalVisible(true);
+              }
+            }}
+            disabled={!state}
             activeOpacity={0.8}
           >
             <View style={styles.dropdownLeftRow}>
-              <Feather name="home" size={18} color="#7a8a6b" style={{ marginRight: 10 }} />
-              <Text style={[styles.dropdownText, !registeredCenter && styles.placeholderText]}>
-                {registeredCenter || (state ? 'Select Nearest Center...' : 'Select State first...')}
+              <Feather name="home" size={18} color={state ? "#7a8a6b" : "#94a3b8"} style={{ marginRight: 10 }} />
+              <Text style={[styles.dropdownText, (!registeredCenter || !state) && styles.placeholderText]}>
+                {registeredCenter || (state ? (loadingCenters ? 'Loading Centers...' : 'Select Nearest Center...') : 'Select State first...')}
               </Text>
             </View>
-            <Feather name="chevron-down" size={18} color="#64748b" />
+            {loadingCenters ? (
+              <ActivityIndicator size="small" color="#7a8a6b" />
+            ) : (
+              <Feather name="chevron-down" size={18} color={state ? "#64748b" : "#cbd5e1"} />
+            )}
           </TouchableOpacity>
 
           <Text style={styles.fieldLabel}>CITY</Text>
@@ -482,30 +537,39 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 <Feather name="x" size={22} color="#334155" />
               </TouchableOpacity>
             </View>
-            <FlatList
-              data={INDIAN_STATES}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setState(item.name);
-                    setStateId(item.id);
-                    setRegisteredCenter('');
-                    setRegisteredCenterId('');
-                    setIsStateModalVisible(false);
-                  }}
-                >
-                  <View>
-                    <Text style={[styles.modalOptionText, state === item.name && styles.modalOptionTextActive]}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.modalSubIdText}>ID: {item.id}</Text>
-                  </View>
-                  {state === item.name && <Feather name="check" size={18} color="#2e5b02" />}
-                </TouchableOpacity>
-              )}
-            />
+            {loadingStates ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#557924" />
+              </View>
+            ) : (
+              <FlatList
+                data={statesList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      setState(item.name);
+                      setStateId(item.id);
+                      setRegisteredCenter('');
+                      setRegisteredCenterId('');
+                      setIsStateModalVisible(false);
+                    }}
+                  >
+                    <View>
+                      <Text style={[styles.modalOptionText, state === item.name && styles.modalOptionTextActive]}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.modalSubIdText}>ID: {item.id}</Text>
+                    </View>
+                    {state === item.name && <Feather name="check" size={18} color="#2e5b02" />}
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyListText}>No states found</Text>
+                }
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -525,28 +589,41 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
                 <Feather name="x" size={22} color="#334155" />
               </TouchableOpacity>
             </View>
-            <FlatList
-              data={availableCenters}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setRegisteredCenter(item.name);
-                    setRegisteredCenterId(item.id);
-                    setIsCenterModalVisible(false);
-                  }}
-                >
-                  <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={[styles.modalOptionText, registeredCenter === item.name && styles.modalOptionTextActive]}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.modalSubIdText}>State: {item.stateName} | ID: {item.id}</Text>
-                  </View>
-                  {registeredCenter === item.name && <Feather name="check" size={18} color="#2e5b02" />}
-                </TouchableOpacity>
-              )}
-            />
+            {loadingCenters ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#557924" />
+              </View>
+            ) : (
+              <FlatList
+                data={centersList}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalOption}
+                    onPress={() => {
+                      setRegisteredCenter(item.name);
+                      setRegisteredCenterId(item.id);
+                      setIsCenterModalVisible(false);
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: 10 }}>
+                      <Text style={[styles.modalOptionText, registeredCenter === item.name && styles.modalOptionTextActive]}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.modalSubIdText}>
+                        {item.city ? `City: ${item.city} | ` : ''}ID: {item.id}
+                      </Text>
+                    </View>
+                    {registeredCenter === item.name && <Feather name="check" size={18} color="#2e5b02" />}
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyListText}>
+                    {state ? 'No service centers available for this state' : 'Please select a state first'}
+                  </Text>
+                }
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -784,6 +861,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  disabledDropdown: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
+    opacity: 0.65,
+  },
+  emptyListText: {
+    textAlign: 'center',
+    color: '#94a3b8',
+    paddingVertical: 20,
+    fontSize: 14,
     fontFamily: 'PlusJakartaSans-Regular',
   },
 });
