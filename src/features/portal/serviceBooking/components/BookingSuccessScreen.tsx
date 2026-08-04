@@ -20,8 +20,13 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
   onTrackStatus,
 }) => {
   const formatDateLabel = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('default', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -50,7 +55,7 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
           </Text>
         </View>
 
-        {!pickupRequired && (
+        {selectedCenter ? (
           <>
             <View style={styles.rowDivider} />
             {/* Service Center */}
@@ -59,7 +64,7 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
               <Text style={styles.summaryValue}>{selectedCenter}</Text>
             </View>
           </>
-        )}
+        ) : null}
 
         <View style={styles.rowDivider} />
 

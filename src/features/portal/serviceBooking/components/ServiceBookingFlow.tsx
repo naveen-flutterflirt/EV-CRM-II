@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { ServiceModeScreen } from './ServiceModeScreen';
 import { ServiceCenterScreen } from './ServiceCenterScreen';
-import { TimeSlotSelector } from './TimeSlotSelector';
 import { BookingSuccessScreen } from './BookingSuccessScreen';
 import { useCreateBooking, useServiceCenters } from '../hooks/useServiceBooking';
+import { AppointmentForm } from './AppointmentForm';
 
 interface ServiceBookingFlowProps {
   vehicleId?: string;
@@ -51,11 +51,11 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
   const handleModeSelect = (required: boolean) => {
     setPickupRequired(required);
     if (required) {
-      // Doorstep pickup skips center selection in Workshop flow
-      setStep(3);
-    } else {
-      // Workshop drop-off goes to center selection
+      // Doorstep pickup goes to center selection
       setStep(2);
+    } else {
+      // Workshop drop-off opens appointment form directly
+      setStep(3);
     }
   };
 
@@ -65,50 +65,36 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
     setStep(3);
   };
 
-  const handleConfirmBooking = (date: string, slotId: string, slotTime: string) => {
-    setSelectedDate(date);
-    setSelectedSlotId(slotId);
-    setSelectedSlotTime(slotTime);
-
-    // Convert date + slot time into ISO string
-    // slotTime format: '09:00 AM - 11:00 AM'
-    let isoDateTime = new Date(date).toISOString();
+  const handleFormSubmit = (formData: any) => {
     try {
-      const timePart = slotTime.split(' - ')[0]; // '09:00 AM'
-      const [timeVal, modifier] = timePart.split(' '); // ['09:00', 'AM']
-      let [hours, minutes] = timeVal.split(':');
-      
-      let parsedHours = parseInt(hours, 10);
-      if (parsedHours === 12) parsedHours = 0;
-      if (modifier === 'PM') parsedHours += 12;
-      
-      const combinedDate = new Date(date);
-      combinedDate.setHours(parsedHours, parseInt(minutes, 10), 0, 0);
-      isoDateTime = combinedDate.toISOString();
-    } catch (e) {
-      console.warn("Failed to format slot date/time to ISO, using default:", e);
+      const d = new Date(formData.scheduledAt);
+      setSelectedDate(formData.scheduledAt);
+      setSelectedSlotTime(d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }));
+    } catch {
+      setSelectedDate(formData.scheduledAt || "");
+      setSelectedSlotTime("");
     }
 
-    // Resolve centerId UUID
-    // If center ID is a mock ID, use the first center from the backend or a fallback UUID
-    let targetCenterId = selectedCenterId;
+    let targetCenterId = formData.centerId || selectedCenterId;
     if (!targetCenterId || targetCenterId.startsWith('center_')) {
       targetCenterId = dbCenters && dbCenters.length > 0 
         ? dbCenters[0].centerId 
-        : '00000000-0000-0000-0000-000000000000'; // Default fallback UUID if backend is empty
+        : '00000000-0000-0000-0000-000000000000';
     }
 
-    // Customer ID UUID check
-    const targetCustomerId = customerId || '00000000-0000-0000-0000-000000000000';
+    let targetCenterName = formData.serviceCenter || selectedCenterName;
+    setSelectedCenterName(targetCenterName);
+
+    const targetCustomerId = formData.customerId || customerId || '00000000-0000-0000-0000-000000000000';
 
     bookingMutation.mutate({
       customerId: targetCustomerId,
-      vehicleId,
+      vehicleId: formData.vehicleId || vehicleId || 'veh_450x',
       centerId: targetCenterId,
-      scheduledAt: isoDateTime,
-      channel: 'mobile_app',
-      jobType: 'REGULAR_SERVICE',
-      complaintText: `Mode: ${pickupRequired ? 'Doorstep pickup' : 'Workshop drop-off'}. Preferred slot: ${slotTime}`,
+      scheduledAt: formData.scheduledAt,
+      channel: formData.channel || 'mobile_app',
+      jobType: formData.jobType || 'scheduled_maintenance',
+      complaintText: formData.notes || '',
     }, {
       onSuccess: () => {
         setStep(4);
@@ -122,9 +108,9 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
 
   const handleStep3Back = () => {
     if (pickupRequired) {
-      setStep(1);
-    } else {
       setStep(2);
+    } else {
+      setStep(1);
     }
   };
 
@@ -146,9 +132,13 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
         />
       )}
       {step === 3 && (
-        <TimeSlotSelector
-          onBack={handleStep3Back}
-          onConfirm={handleConfirmBooking}
+        <AppointmentForm
+          initialCenterId={selectedCenterId}
+          initialCenterName={selectedCenterName}
+          customerId={customerId}
+          vehicleId={vehicleId}
+          onCancel={handleStep3Back}
+          onSubmit={handleFormSubmit}
           isSubmitting={bookingMutation.isPending}
         />
       )}

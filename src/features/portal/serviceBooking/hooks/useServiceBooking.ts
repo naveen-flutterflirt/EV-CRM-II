@@ -22,6 +22,9 @@ export function useCreateBooking() {
     mutationFn: (payload: BookingPayload) => createBookingApi(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["portal", "bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["portal", "appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["portal", "jobCards"] });
+      queryClient.invalidateQueries({ queryKey: ["portal", "customer", "dashboard"] });
     },
   });
 }
