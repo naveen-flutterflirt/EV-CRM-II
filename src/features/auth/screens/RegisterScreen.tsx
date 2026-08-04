@@ -34,21 +34,19 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
 const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
+    backgroundColor: '#f8fafc',
   },
   container: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 520,
     alignSelf: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   logo: {
-    width: 180,
-    height: 180,
-    marginBottom: 20,
+    width: 140,
+    height: 140,
+    marginBottom: 12,
   },
 });

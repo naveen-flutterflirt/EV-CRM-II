@@ -10,6 +10,15 @@ export interface RegisterPayload {
   phone: string;
   email?: string;
   password?: string;
+  firstName?: string;
+  lastName?: string;
+  gender?: string;
+  altPhone?: string;
+  isFleet?: boolean;
+  streetAddress?: string;
+  state?: string;
+  city?: string;
+  pincode?: string;
 }
 
 export interface AuthResponse {

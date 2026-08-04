@@ -8,7 +8,147 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
-import { JobCardTrackerScreen, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
+import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
+import { useCustomerVehicles, VehicleDetailsScreen } from '../../myVehicles';
+import {
+  AccountScreen,
+  EditProfileScreen,
+  ServiceHistoryScreen,
+  ServiceDetailScreen,
+  SupportMainScreen,
+  HelpCenterScreen,
+  ContactScreen,
+  SettingsScreen,
+  SecurityScreen,
+  TermsAndPrivacyScreen,
+  useProfileState,
+} from '../../profile';
+
+interface ProfileTabFlowProps {
+  onGoToBooking?: () => void;
+}
+
+const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
+  const {
+    profile,
+    serviceHistory,
+    serviceDetail,
+    supportTickets,
+    faqs,
+    subView,
+    setSubView,
+    saving,
+    pushNotificationsEnabled,
+    setPushNotificationsEnabled,
+    selectedLanguage,
+    setSelectedLanguage,
+    openServiceDetail,
+    handleSaveProfile,
+    handleLogout,
+  } = useProfileState();
+
+  if (subView === 'EDIT_PROFILE') {
+    return (
+      <EditProfileScreen
+        user={profile}
+        saving={saving}
+        onSave={handleSaveProfile}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'SERVICE_HISTORY') {
+    return (
+      <ServiceHistoryScreen
+        history={serviceHistory}
+        onSelectRecord={(record) => openServiceDetail(record)}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'SERVICE_DETAIL') {
+    return (
+      <ServiceDetailScreen
+        detail={serviceDetail}
+        onBack={() => setSubView('SERVICE_HISTORY')}
+        onBookNextService={onGoToBooking}
+      />
+    );
+  }
+
+  if (subView === 'SUPPORT_MAIN') {
+    return (
+      <SupportMainScreen
+        tickets={supportTickets}
+        onOpenHelpCenter={() => setSubView('HELP_CENTER')}
+        onOpenContactUs={() => setSubView('CONTACT_US')}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
+
+  if (subView === 'HELP_CENTER') {
+    return (
+      <HelpCenterScreen
+        faqs={faqs}
+        onOpenContactUs={() => setSubView('CONTACT_US')}
+        onBack={() => setSubView('SUPPORT_MAIN')}
+      />
+    );
+  }
+
+  if (subView === 'CONTACT_US') {
+    return (
+      <ContactScreen
+        onBack={() => setSubView('SUPPORT_MAIN')}
+      />
+    );
+  }
+
+  if (subView === 'SECURITY') {
+    return (
+      <SecurityScreen
+        onBack={() => setSubView('SETTINGS')}
+      />
+    );
+  }
+
+  if (subView === 'TERMS_AND_PRIVACY') {
+    return (
+      <TermsAndPrivacyScreen
+        onBack={() => setSubView('SETTINGS')}
+      />
+    );
+  }
+
+  if (subView === 'SETTINGS') {
+    return (
+      <SettingsScreen
+        pushNotifications={pushNotificationsEnabled}
+        onTogglePushNotifications={setPushNotificationsEnabled}
+        selectedLanguage={selectedLanguage}
+        onSelectLanguage={setSelectedLanguage}
+        onOpenSecurity={() => setSubView('SECURITY')}
+        onOpenTermsAndPrivacy={() => setSubView('TERMS_AND_PRIVACY')}
+        onBack={() => setSubView('ACCOUNT')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <AccountScreen
+      user={profile}
+      onOpenEditProfile={() => setSubView('EDIT_PROFILE')}
+      onOpenServiceHistory={() => setSubView('SERVICE_HISTORY')}
+      onOpenSupport={() => setSubView('SUPPORT_MAIN')}
+      onOpenSettings={() => setSubView('SETTINGS')}
+      onLogout={handleLogout}
+    />
+  );
+};
 
 interface CustomerHomeScreenProps {
   onBookService?: () => void;
@@ -29,6 +169,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD'>('HOME');
 
   const customerId = dashboardData?.user?.customerId;
+  const { vehicles, addVehicle } = useCustomerVehicles(customerId);
+  const primaryVehicle = vehicles.length > 0 ? vehicles[0] : null;
+
   const { data: jobCards } = useActiveJobCard(customerId);
   const { data: appointments } = useCustomerAppointments(customerId);
 
@@ -47,9 +190,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         appt.status === 'checked_in'
       );
       if (activeAppt) {
-        // Construct virtual JobCard structure representing Appointment Confirmed
         return {
-          jobCardId: '', // Empty triggers virtual appointment tracking
+          jobCardId: '',
           jobNumber: activeAppt.apptNumber,
           customerId: activeAppt.customerId,
           vehicleId: activeAppt.vehicleId,
@@ -59,7 +201,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             apptNumber: activeAppt.apptNumber,
             scheduledAt: activeAppt.scheduledAt,
           },
-          status: 'open' as const, // Maps to Stage 1 (Appointment Confirmed) completed, Stage 2 pending
+          status: 'open' as const,
           jobType: activeAppt.jobType,
           priority: 'normal',
           openedAt: activeAppt.scheduledAt,
@@ -68,30 +210,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         };
       }
     }
-    // Default fallback mockup Job Card so that the timeline tracker is ALWAYS visible and testable
-    return {
-      jobCardId: 'mock-jc-id',
-      jobNumber: 'JC-BHOPAL-2026-003',
-      customerId: customerId || 'mock-customer-id',
-      vehicleId: 'mock-vehicle-id',
-      status: 'in_progress' as const,
-      jobType: 'scheduled_maintenance',
-      priority: 'normal',
-      odometerInKm: 12450,
-      batterySohInPct: 94.5,
-      reportedComplaint: 'Periodic maintenance, check front brake pads noise.',
-      openedAt: new Date().toISOString(),
-      center: {
-        centerId: 'b6960d90-87ee-4fa8-83e6-227c57506a4e',
-        centerName: 'Bhopal Head Office & EV Workshop',
-        centerCode: 'BHOPAL_HQ',
-      },
-      vehicle: {
-        vehicleId: 'mock-vehicle-id',
-        registrationNo: dashboardData?.vehicle ? `${dashboardData.vehicle.brand} ${dashboardData.vehicle.model}` : 'MP-04-AB-1234',
-        vin: 'ATH450X2026MOCK',
-      },
-    };
+
+    return null;
   };
 
   const activeJobCard = getActiveJobCardOrVirtual();
@@ -107,16 +227,11 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         );
       case 'VEHICLES':
         return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>🚘 My Registered EV Garage</Text>
-            <VehicleStatusCard
-              vehicle={dashboardData?.vehicle}
-            />
-            <BatteryRangeCard
-              batteryPct={dashboardData?.vehicle.batteryHealthPct}
-              rangeKm={dashboardData?.vehicle.currentRangeKm}
-            />
-          </View>
+          <VehicleDetailsScreen
+            vehicle={primaryVehicle}
+            onBack={() => setActiveTab('HOME')}
+            onAddVehicle={async (payload) => { await addVehicle(payload); }}
+          />
         );
       case 'BOOK':
         return (
@@ -127,95 +242,21 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             onTrackStatus={() => setActiveTab('JOBCARD')}
           />
         );
-      case 'STORE':
-        return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>🛍️ EV OEM Spare Parts, Batteries & Accessories Store</Text>
-            <QuickActionsGrid
-              onBookService={onBookService}
-              onLiveTracking={onTrackService}
-              onOrderParts={onSpareParts}
-            />
-          </View>
-        );
       case 'PROFILE':
-        const profileUser = dashboardData?.user;
-        return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>👤 Profile & Account Details</Text>
-
-            {/* Profile Summary Card */}
-            <View style={styles.profileHeaderCard}>
-              <View style={styles.profileAvatarCircle}>
-                <Feather name="user" size={40} color="#2e5b02" />
-              </View>
-              <View style={styles.profileMeta}>
-                <Text style={styles.profileName}>{profileUser?.name || 'EV User'}</Text>
-                <Text style={styles.profileSubText}>{profileUser?.location || 'Indore'}</Text>
-                <View style={styles.customerBadge}>
-                  <Text style={styles.customerBadgeText}>VERIFIED CUSTOMER</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Details List Card */}
-            <View style={styles.detailsCard}>
-              {/* Full Name */}
-              <View style={styles.detailRow}>
-                <Feather name="user" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>FULL NAME</Text>
-                  <Text style={styles.detailValue}>{profileUser?.name || 'Rohan'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Email */}
-              <View style={styles.detailRow}>
-                <Feather name="mail" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>EMAIL ADDRESS</Text>
-                  <Text style={styles.detailValue}>{profileUser?.email || 'rohan@example.com'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Phone */}
-              <View style={styles.detailRow}>
-                <Feather name="phone" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>PHONE NUMBER</Text>
-                  <Text style={styles.detailValue}>{profileUser?.phone || '+91 9876543210'}</Text>
-                </View>
-              </View>
-
-              <View style={styles.rowDivider} />
-
-              {/* Branch */}
-              <View style={styles.detailRow}>
-                <Feather name="home" size={20} color="#7a8a6b" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>REGISTERED BRANCH</Text>
-                  <Text style={styles.detailValue}>{profileUser?.branch || 'Bhopal Head Office & Wo'}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        );
+        return <ProfileTabFlow onGoToBooking={() => setActiveTab('BOOK')} />;
       case 'HOME':
       default:
         return (
           <>
-            {/* 1. Vehicle Status & Book Service Card */}
-            <TouchableOpacity onPress={() => setActiveTab('JOBCARD')} activeOpacity={0.9}>
+            {/* 1. Vehicle Status Card (Tapping opens Vehicle Details Screen) */}
+            <TouchableOpacity onPress={() => setActiveTab('VEHICLES')} activeOpacity={0.9}>
               <VehicleStatusCard
                 vehicle={dashboardData?.vehicle}
+                vehicles={vehicles}
               />
             </TouchableOpacity>
 
-            {/* Job Card Status Summary Card */}
+            {/* 2. Job Card Status Summary or No Active Job Card Empty State */}
             {activeJobCard ? (
               <TouchableOpacity 
                 style={styles.jobTrackingCard}
@@ -246,7 +287,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                   </Text>
                 </View>
               </TouchableOpacity>
-            ) : null}
+            ) : (
+              <NoActiveJobCardCard onBookServicePress={() => setActiveTab('BOOK')} />
+            )}
 
             {/* 2. Quick Actions Grid */}
             <QuickActionsGrid
