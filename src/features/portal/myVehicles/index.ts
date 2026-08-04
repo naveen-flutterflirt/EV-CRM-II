@@ -1,3 +1,6 @@
 export * from "./api";
-export * from "./hooks/useVehicles";
 export * from "./types";
+export * from "./hooks/useCustomerVehicles";
+export * from "./components/VehicleCard";
+export * from "./components/VehicleDetailsScreen";
+export * from "./components/AddVehicleModal";

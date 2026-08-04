@@ -1,16 +1,37 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Vehicle } from '../../../../common/types';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Vehicle } from '../types';
 
-export const VehicleCard: React.FC<{ vehicle?: Vehicle }> = ({ vehicle }) => {
+interface VehicleCardProps {
+  vehicle?: Vehicle;
+  onPress?: () => void;
+}
+
+export const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, onPress }) => {
+  const brand = vehicle?.brand || '';
+  const model = vehicle?.model || '';
+  const regNo = vehicle?.registrationNumber || 'Not Registered';
+  const warranty = vehicle?.warrantyStatus || 'Standard';
+
   return (
-    <View style={styles.card}>
-      <Text style={styles.title}>{vehicle?.brand || 'Ather'} {vehicle?.model || '450X'}</Text>
-      <Text style={styles.subtitle}>{vehicle?.registrationNumber || 'MP04-EV-1024'}</Text>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>Active Warranty</Text>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.88}
+    >
+      <View style={styles.topRow}>
+        <View>
+          <Text style={styles.title}>{brand} {model}</Text>
+          <Text style={styles.subtitle}>{regNo}</Text>
+        </View>
+
+        <View style={styles.badge}>
+          <Feather name="shield" size={12} color="#4d7c0f" style={{ marginRight: 4 }} />
+          <Text style={styles.badgeText}>{warranty}</Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -18,27 +39,45 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     backgroundColor: '#ffffff',
-    borderColor: '#e4e4e7',
+    borderColor: '#f1f0f7',
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
   },
-  title: { color: '#18181b', fontSize: 16, fontWeight: 'bold' },
-  subtitle: { color: '#71717a', fontSize: 13, marginTop: 4 },
-  badge: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#a7f3d0',
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 8,
-    alignSelf: 'flex-start',
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  badgeText: { color: '#047857', fontSize: 11, fontWeight: 'bold' },
+  title: {
+    color: '#0f172a',
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  subtitle: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#edf6d6',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+  },
+  badgeText: {
+    color: '#4d7c0f',
+    fontSize: 11,
+    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
 });

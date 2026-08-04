@@ -8,7 +8,8 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
-import { JobCardTrackerScreen, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
+import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
+import { useCustomerVehicles, VehicleDetailsScreen } from '../../myVehicles';
 import {
   AccountScreen,
   EditProfileScreen,
@@ -168,6 +169,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD'>('HOME');
 
   const customerId = dashboardData?.user?.customerId;
+  const { vehicles, addVehicle } = useCustomerVehicles(customerId);
+  const primaryVehicle = vehicles.length > 0 ? vehicles[0] : null;
+
   const { data: jobCards } = useActiveJobCard(customerId);
   const { data: appointments } = useCustomerAppointments(customerId);
 
@@ -186,9 +190,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         appt.status === 'checked_in'
       );
       if (activeAppt) {
-        // Construct virtual JobCard structure representing Appointment Confirmed
         return {
-          jobCardId: '', // Empty triggers virtual appointment tracking
+          jobCardId: '',
           jobNumber: activeAppt.apptNumber,
           customerId: activeAppt.customerId,
           vehicleId: activeAppt.vehicleId,
@@ -198,7 +201,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             apptNumber: activeAppt.apptNumber,
             scheduledAt: activeAppt.scheduledAt,
           },
-          status: 'open' as const, // Maps to Stage 1 (Appointment Confirmed) completed, Stage 2 pending
+          status: 'open' as const,
           jobType: activeAppt.jobType,
           priority: 'normal',
           openedAt: activeAppt.scheduledAt,
@@ -207,30 +210,8 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         };
       }
     }
-    // Default fallback mockup Job Card so that the timeline tracker is ALWAYS visible and testable
-    return {
-      jobCardId: 'mock-jc-id',
-      jobNumber: 'JC-BHOPAL-2026-003',
-      customerId: customerId || 'mock-customer-id',
-      vehicleId: 'mock-vehicle-id',
-      status: 'in_progress' as const,
-      jobType: 'scheduled_maintenance',
-      priority: 'normal',
-      odometerInKm: 12450,
-      batterySohInPct: 94.5,
-      reportedComplaint: 'Periodic maintenance, check front brake pads noise.',
-      openedAt: new Date().toISOString(),
-      center: {
-        centerId: 'b6960d90-87ee-4fa8-83e6-227c57506a4e',
-        centerName: 'Bhopal Head Office & EV Workshop',
-        centerCode: 'BHOPAL_HQ',
-      },
-      vehicle: {
-        vehicleId: 'mock-vehicle-id',
-        registrationNo: dashboardData?.vehicle ? `${dashboardData.vehicle.brand} ${dashboardData.vehicle.model}` : 'MP-04-AB-1234',
-        vin: 'ATH450X2026MOCK',
-      },
-    };
+
+    return null;
   };
 
   const activeJobCard = getActiveJobCardOrVirtual();
@@ -246,16 +227,11 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
         );
       case 'VEHICLES':
         return (
-          <View style={styles.tabContentBlock}>
-            <Text style={styles.tabHeading}>🚘 My Registered EV Garage</Text>
-            <VehicleStatusCard
-              vehicle={dashboardData?.vehicle}
-            />
-            <BatteryRangeCard
-              batteryPct={dashboardData?.vehicle.batteryHealthPct}
-              rangeKm={dashboardData?.vehicle.currentRangeKm}
-            />
-          </View>
+          <VehicleDetailsScreen
+            vehicle={primaryVehicle}
+            onBack={() => setActiveTab('HOME')}
+            onAddVehicle={addVehicle}
+          />
         );
       case 'BOOK':
         return (
@@ -272,14 +248,15 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
       default:
         return (
           <>
-            {/* 1. Vehicle Status & Book Service Card */}
-            <TouchableOpacity onPress={() => setActiveTab('JOBCARD')} activeOpacity={0.9}>
+            {/* 1. Vehicle Status Card (Tapping opens Vehicle Details Screen) */}
+            <TouchableOpacity onPress={() => setActiveTab('VEHICLES')} activeOpacity={0.9}>
               <VehicleStatusCard
                 vehicle={dashboardData?.vehicle}
+                vehicles={vehicles}
               />
             </TouchableOpacity>
 
-            {/* Job Card Status Summary Card */}
+            {/* 2. Job Card Status Summary or No Active Job Card Empty State */}
             {activeJobCard ? (
               <TouchableOpacity 
                 style={styles.jobTrackingCard}
@@ -310,7 +287,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                   </Text>
                 </View>
               </TouchableOpacity>
-            ) : null}
+            ) : (
+              <NoActiveJobCardCard onBookServicePress={() => setActiveTab('BOOK')} />
+            )}
 
             {/* 2. Quick Actions Grid */}
             <QuickActionsGrid

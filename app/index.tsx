@@ -26,8 +26,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   const handleLoginSuccess = (user: any) => {
     setIsSignupFlow(false);
-    setPendingUser(user);
-    setCurrentScreen('email-verification');
+    completeAuthentication(user);
   };
 
   const handleRegisterSuccess = (user: any) => {
@@ -52,13 +51,9 @@ export default function HomeScreen(): React.JSX.Element {
   };
 
   const handleVerificationSuccess = () => {
-    if (!pendingUser) return;
-
-    if (isSignupFlow) {
-      setCurrentScreen('setup-profile');
-    } else {
-      completeAuthentication(pendingUser);
-    }
+    setPendingUser(null);
+    setIsSignupFlow(false);
+    setCurrentScreen('login');
   };
 
   const handleProfileSetupComplete = () => {
