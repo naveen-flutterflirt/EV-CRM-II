@@ -9,7 +9,16 @@ export async function loginUserApi(payload: LoginPayload): Promise<AuthResponse>
 
 export async function registerCustomerApi(payload: RegisterPayload): Promise<AuthResponse> {
   const res = await api.post("/auth/register", payload);
-  return res.data?.data ? { success: true, token: res.data.data.token, user: res.data.data.user, message: res.data.data.message, email: res.data.data.email } : res.data;
+  if (res.data?.data) {
+    return {
+      success: true,
+      token: res.data.data.token,
+      user: res.data.data.user,
+      message: res.data.data.message || res.data.message,
+      email: res.data.data.email,
+    };
+  }
+  return res.data;
 }
 
 export async function sendOtpApi(email: string): Promise<{ success: boolean; message: string }> {

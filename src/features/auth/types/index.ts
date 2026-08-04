@@ -15,6 +15,7 @@ export interface RegisterPayload {
   gender?: string;
   altPhone?: string;
   isFleet?: boolean;
+  gstin?: string;
   streetAddress?: string;
   state?: string;
   state_id?: string;

@@ -37,6 +37,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [altPhone, setAltPhone] = useState('');
   const [email, setEmail] = useState('');
   const [isFleet, setIsFleet] = useState(false);
+  const [gstin, setGstin] = useState('');
   const [streetAddress, setStreetAddress] = useState('');
 
   // Dropdown States for State & Registered Center
@@ -158,6 +159,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       return;
     }
 
+    if (isFleet && !gstin.trim()) {
+      setLocalError('Please enter GSTIN / Tax Number for Fleet Customer');
+      return;
+    }
+
     setLocalError('');
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
@@ -168,9 +174,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       password,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
-      gender,
+      gender: gender ? gender.toLowerCase() : undefined,
       altPhone: altPhone.trim() || undefined,
       isFleet,
+      gstin: isFleet ? gstin.trim().toUpperCase() : undefined,
       streetAddress: streetAddress.trim() || undefined,
       state: state || undefined,
       state_id: stateId || state || undefined,
@@ -183,9 +190,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
     try {
       const res = await register(payload);
-      if (res.success || res.email || res.message) {
+      if (res && (res.success || res.email || res.message)) {
+        const targetEmail = res.email || email.trim();
         const pendingUser = {
-          email: email.trim() || res.email || '',
+          email: targetEmail,
           fullName,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
@@ -329,6 +337,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
               thumbColor="#ffffff"
             />
           </View>
+
+          {isFleet && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={styles.fieldLabel}>
+                GSTIN / TAX NUMBER <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
+              <View style={styles.inputContainer}>
+                <Feather name="file-text" size={18} color="#7a8a6b" style={{ marginRight: 10 }} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. 23AAAAA0000A1Z5"
+                  placeholderTextColor="#94a3b8"
+                  value={gstin}
+                  onChangeText={(val) => setGstin(val.toUpperCase())}
+                  autoCapitalize="characters"
+                  maxLength={15}
+                />
+              </View>
+            </View>
+          )}
         </View>
 
         <View style={styles.divider} />
