@@ -5,7 +5,7 @@ import { AddVehiclePayload } from "../types";
 export function useCustomerVehicles(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["portal", "vehicles"],
-    queryFn: fetchCustomerVehiclesApi,
+    queryFn: () => fetchCustomerVehiclesApi(),
     ...options,
   });
 }
