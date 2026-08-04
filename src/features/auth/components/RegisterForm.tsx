@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Cookies from 'js-cookie';
 import { useAuthHook } from '../hooks/useAuth';
 
 interface RegisterFormProps {
@@ -56,6 +57,10 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     try {
       const res = await register({ name, phone, email, password });
       if (res.user) {
+        if (res.token) {
+          Cookies.set("token", res.token, { expires: 7 });
+          Cookies.set("userRole", res.user.role?.roleCode || "customer", { expires: 7 });
+        }
         onRegisterSuccess(res.user);
       }
     } catch (err: any) {
