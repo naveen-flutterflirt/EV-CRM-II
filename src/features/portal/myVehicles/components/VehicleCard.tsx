@@ -9,9 +9,9 @@ interface VehicleCardProps {
 }
 
 export const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, onPress }) => {
-  const brand = vehicle?.brand || '';
-  const model = vehicle?.model || '';
-  const regNo = vehicle?.registrationNumber || 'Not Registered';
+  const brand = vehicle?.brand || (vehicle?.model as any)?.manufacturer?.name || (vehicle?.model as any)?.manufacturer || '';
+  const model = (typeof vehicle?.model === 'string' ? vehicle.model : (vehicle?.model as any)?.modelName) || (vehicle as any)?.modelName || '';
+  const regNo = vehicle?.registrationNumber || (vehicle as any)?.registrationNo || 'Not Registered';
   const warranty = vehicle?.warrantyStatus || 'Standard';
 
   return (
@@ -22,7 +22,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, onPress }) =>
     >
       <View style={styles.topRow}>
         <View>
-          <Text style={styles.title}>{brand} {model}</Text>
+          <Text style={styles.title}>{brand ? `${brand} ${model}`.trim() : model || 'No Vehicle'}</Text>
           <Text style={styles.subtitle}>{regNo}</Text>
         </View>
 
@@ -34,6 +34,7 @@ export const VehicleCard: React.FC<VehicleCardProps> = ({ vehicle, onPress }) =>
     </TouchableOpacity>
   );
 };
+
 
 const styles = StyleSheet.create({
   card: {

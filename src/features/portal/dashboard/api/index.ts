@@ -1,6 +1,8 @@
 import api from "../../../../config/axios";
 import { CustomerDashboardData } from "../types";
 
+
+
 export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData> {
   try {
     // 1. Fetch user data first to obtain customerId for scoping
@@ -58,7 +60,7 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
               }
               return String(rawModel);
             })(),
-            warrantyStatus: firstVehicle.warrantyStatus || (firstVehicle.warrantyEnd ? "Active Warranty" : ""),
+            warrantyStatus: firstVehicle.warrantyStatus || (firstVehicle.warrantyEnd ? "Active Warranty" : "WARRANTY ACTIVE"),
             batteryHealthPct: firstVehicle.batteryHealthPct || firstVehicle.batterySohInPct || 0,
             currentRangeKm: firstVehicle.currentRangeKm || firstVehicle.rangeKm || 0,
             totalVehiclesCount: totalVehiclesCount,

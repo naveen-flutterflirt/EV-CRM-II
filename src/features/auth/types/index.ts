@@ -27,3 +27,7 @@ export interface AuthResponse {
   user?: any;
   message?: string;
 }
+export interface ResetPasswordPayload {
+  token: string;
+  password?: string;
+}
