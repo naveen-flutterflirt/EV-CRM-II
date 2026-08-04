@@ -57,10 +57,15 @@ export default function HomeScreen(): React.JSX.Element {
     }
   };
 
-  const handleVerificationSuccess = () => {
-    setPendingUser(null);
-    setIsSignupFlow(false);
-    setCurrentScreen('login');
+  const handleVerificationSuccess = (user?: any) => {
+    const authenticatedUser = user || pendingUser;
+    if (authenticatedUser && (authenticatedUser.userId || authenticatedUser.id)) {
+      completeAuthentication(authenticatedUser);
+    } else {
+      setPendingUser(null);
+      setIsSignupFlow(false);
+      setCurrentScreen('login');
+    }
   };
 
   const handleProfileSetupComplete = () => {

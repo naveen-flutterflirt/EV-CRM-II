@@ -183,30 +183,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
     try {
       const res = await register(payload);
-      if (res.user) {
-        const mergedUser = {
-          ...res.user,
+      if (res.success || res.email || res.message) {
+        const pendingUser = {
+          email: email.trim() || res.email || '',
           fullName,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           gender,
           phone: phone.trim(),
-          altPhone: altPhone.trim(),
-          email: email.trim(),
-          isFleet,
-          streetAddress: streetAddress.trim(),
-          state,
-          state_id: stateId,
-          registered_center_id: registeredCenterId,
-          city: city.trim(),
-          pincode: pincode.trim(),
         };
-
-        if (res.token) {
-          Cookies.set("token", res.token, { expires: 7 });
-          Cookies.set("userRole", res.user.role?.roleCode || "customer", { expires: 7 });
-        }
-        onRegisterSuccess(mergedUser);
+        onRegisterSuccess(pendingUser);
       }
     } catch (err: any) {
       setLocalError(err.message || 'Registration failed. Please try again.');

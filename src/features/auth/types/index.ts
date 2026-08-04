@@ -30,6 +30,7 @@ export interface AuthResponse {
   token?: string;
   user?: any;
   message?: string;
+  email?: string;
 }
 export interface ResetPasswordPayload {
   token: string;
