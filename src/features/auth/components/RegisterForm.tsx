@@ -17,8 +17,9 @@ import { RegisterPayload } from '../types';
 import { fetchStatesApi, fetchServiceCentersApi, StateItem, ServiceCenterItem } from '../api';
 
 interface RegisterFormProps {
-  onRegisterSuccess: (user: any) => void;
+  onRegisterSuccess: (user: any, formData?: any) => void;
   onNavigateToLogin: () => void;
+  initialValues?: any;
 }
 
 const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
@@ -26,25 +27,26 @@ const GENDER_OPTIONS = ['Male', 'Female', 'Other'];
 export const RegisterForm: React.FC<RegisterFormProps> = ({
   onRegisterSuccess,
   onNavigateToLogin,
+  initialValues,
 }) => {
   const { register, loading, error } = useAuthHook();
 
-  // Form State
-  const [gender, setGender] = useState('Male');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [altPhone, setAltPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [isFleet, setIsFleet] = useState(false);
-  const [gstin, setGstin] = useState('');
-  const [streetAddress, setStreetAddress] = useState('');
+  // Form State pre-populated from draft initialValues
+  const [gender, setGender] = useState(initialValues?.gender || 'Male');
+  const [firstName, setFirstName] = useState(initialValues?.firstName || '');
+  const [lastName, setLastName] = useState(initialValues?.lastName || '');
+  const [phone, setPhone] = useState(initialValues?.phone || '');
+  const [altPhone, setAltPhone] = useState(initialValues?.altPhone || '');
+  const [email, setEmail] = useState(initialValues?.email || '');
+  const [isFleet, setIsFleet] = useState(initialValues?.isFleet || false);
+  const [gstin, setGstin] = useState(initialValues?.gstin || '');
+  const [streetAddress, setStreetAddress] = useState(initialValues?.streetAddress || '');
 
   // Dropdown States for State & Registered Center
-  const [state, setState] = useState('');
-  const [stateId, setStateId] = useState('');
-  const [registeredCenter, setRegisteredCenter] = useState('');
-  const [registeredCenterId, setRegisteredCenterId] = useState('');
+  const [state, setState] = useState(initialValues?.state || '');
+  const [stateId, setStateId] = useState(initialValues?.stateId || '');
+  const [registeredCenter, setRegisteredCenter] = useState(initialValues?.registeredCenter || '');
+  const [registeredCenterId, setRegisteredCenterId] = useState(initialValues?.registeredCenterId || '');
 
   // Dynamic API Data States
   const [statesList, setStatesList] = useState<StateItem[]>([]);
@@ -52,9 +54,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCenters, setLoadingCenters] = useState(false);
 
-  const [city, setCity] = useState('');
-  const [pincode, setPincode] = useState('');
-  const [password, setPassword] = useState('');
+  const [city, setCity] = useState(initialValues?.city || '');
+  const [pincode, setPincode] = useState(initialValues?.pincode || '');
+  const [password, setPassword] = useState(initialValues?.password || '');
 
   // UI Modals & Error state
   const [showPassword, setShowPassword] = useState(false);
@@ -70,19 +72,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       setLoadingStates(true);
       const data = await fetchStatesApi();
       if (isMounted) {
-        if (data && data.length > 0) {
-          setStatesList(data);
-        } else {
-          setStatesList([
-            { id: 'st_mp_01', name: 'Madhya Pradesh' },
-            { id: 'st_mh_02', name: 'Maharashtra' },
-            { id: 'st_dl_03', name: 'Delhi' },
-            { id: 'st_ka_04', name: 'Karnataka' },
-            { id: 'st_gj_05', name: 'Gujarat' },
-            { id: 'st_tn_06', name: 'Tamil Nadu' },
-            { id: 'st_ts_07', name: 'Telangana' },
-          ]);
-        }
+        setStatesList(data || []);
         setLoadingStates(false);
       }
     }
@@ -106,23 +96,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       setLoadingCenters(true);
       const data = await fetchServiceCentersApi(stateId, state);
       if (isMounted) {
-        if (data && data.length > 0) {
-          setCentersList(data);
-        } else {
-          const fallback = [
-            { id: 'sc_bhopal_01', name: 'Bhopal HQ Service Center', stateName: 'Madhya Pradesh' },
-            { id: 'sc_indore_02', name: 'Indore EV Hub', stateName: 'Madhya Pradesh' },
-            { id: 'sc_jabalpur_03', name: 'Jabalpur Service Point', stateName: 'Madhya Pradesh' },
-            { id: 'sc_mumbai_04', name: 'Mumbai Central EV Center', stateName: 'Maharashtra' },
-            { id: 'sc_pune_05', name: 'Pune Mobility Workshop', stateName: 'Maharashtra' },
-            { id: 'sc_delhi_06', name: 'Delhi NCR Main Center', stateName: 'Delhi' },
-            { id: 'sc_blore_07', name: 'Bangalore Tech Park Center', stateName: 'Karnataka' },
-            { id: 'sc_ahmedabad_08', name: 'Ahmedabad EV Hub', stateName: 'Gujarat' },
-            { id: 'sc_chennai_09', name: 'Chennai Central Care', stateName: 'Tamil Nadu' },
-            { id: 'sc_hyderabad_10', name: 'Hyderabad Mobility Point', stateName: 'Telangana' },
-          ].filter(c => c.stateName === state);
-          setCentersList(fallback);
-        }
+        setCentersList(data || []);
         setLoadingCenters(false);
       }
     }
@@ -166,11 +140,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
     setLocalError('');
 
+    const isUuid = (val?: string) => typeof val === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val.trim());
+
+    const validStateId = isUuid(stateId) ? stateId : undefined;
+    const validCenterId = isUuid(registeredCenterId) ? registeredCenterId : undefined;
+
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
     const payload: RegisterPayload = {
       name: fullName,
       phone: phone.trim(),
       email: email.trim() || undefined,
+      previousEmail: initialValues?.email && initialValues.email.trim() !== email.trim() ? initialValues.email.trim() : undefined,
       password,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -180,10 +160,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       gstin: isFleet ? gstin.trim().toUpperCase() : undefined,
       streetAddress: streetAddress.trim() || undefined,
       state: state || undefined,
-      state_id: stateId || state || undefined,
-      stateId: stateId || state || undefined,
-      registered_center_id: registeredCenterId || undefined,
-      registeredCenterId: registeredCenterId || undefined,
+      stateId: validStateId,
+      registeredCenterId: validCenterId,
       city: city.trim() || undefined,
       pincode: pincode.trim() || undefined,
     };
@@ -200,7 +178,28 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           gender,
           phone: phone.trim(),
         };
-        onRegisterSuccess(pendingUser);
+
+        const formDataDraft = {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          fullName,
+          phone: phone.trim(),
+          altPhone: altPhone.trim(),
+          email: email.trim(),
+          password,
+          gender,
+          isFleet,
+          gstin: gstin.trim(),
+          streetAddress: streetAddress.trim(),
+          state,
+          stateId,
+          registeredCenter,
+          registeredCenterId,
+          city: city.trim(),
+          pincode: pincode.trim(),
+        };
+
+        onRegisterSuccess(pendingUser, formDataDraft);
       }
     } catch (err: any) {
       setLocalError(err.message || 'Registration failed. Please try again.');
@@ -441,6 +440,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
               keyboardType="number-pad"
               value={pincode}
               onChangeText={setPincode}
+              maxLength={6}
             />
           </View>
         </View>
