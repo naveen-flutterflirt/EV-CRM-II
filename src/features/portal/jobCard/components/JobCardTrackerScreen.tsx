@@ -11,18 +11,32 @@ interface JobCardTrackerScreenProps {
   onBack: () => void;
 }
 
-const getActiveStep = (status: string, jobCardId?: string): number => {
+const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: string): number => {
   if (jobCardId === '') return 1;
   switch (status) {
-    case 'open': return 2;
-    case 'in_diagnosis': return 3;
-    case 'awaiting_approval':
+    case 'open':
+    case 'in_diagnosis':
+      return 2; // Inspection
+    case 'in_progress':
+      return 3; // Service
     case 'awaiting_parts':
-    case 'in_progress': return 4;
-    case 'quality_check': return 5;
-    case 'ready': return 6;
-    case 'delivered': return 7;
-    default: return 4;
+      return 4; // Parts
+    case 'awaiting_approval':
+      return 5; // Estimate
+    case 'quality_check':
+      return 6; // In Progress
+    case 'ready':
+      if (invoiceStatus === 'paid') {
+        return 9; // Close
+      }
+      if (invoiceStatus && invoiceStatus !== 'draft') {
+        return 8; // payment
+      }
+      return 7; // invoice
+    case 'delivered':
+      return 10; // 10 means all 9 steps are complete
+    default:
+      return 3;
   }
 };
 
@@ -36,16 +50,17 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   const jobCardId = jobCard?.jobCardId;
   const isMock = jobCardId === 'mock-jc-id';
 
-  useEffect(() => {
-    if (jobCard) {
-      setExpandedStep(getActiveStep(jobCard.status, jobCardId));
-    }
-  }, [jobCardId, jobCard?.status]);
   const { data: history, isLoading: loadingHistory } = useJobCardHistory(jobCardId);
   const { data: inspections, isLoading: loadingInspections } = useJobCardInspections(jobCardId);
   const { data: services, isLoading: loadingServices } = useJobCardServices(jobCardId);
   const { data: parts, isLoading: loadingParts } = useJobCardParts(jobCardId);
   const { data: invoice, isLoading: loadingInvoice } = useJobCardInvoice(jobCardId);
+
+  useEffect(() => {
+    if (jobCard) {
+      setExpandedStep(getActiveStep(jobCard.status, jobCardId, invoice?.status));
+    }
+  }, [jobCardId, jobCard?.status, invoice?.status]);
 
   // If no job card is active, render a beautiful empty/not-found screen
   if (!jobCard) {
@@ -66,7 +81,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     );
   }
 
-  const currentStep = getActiveStep(jobCard.status, jobCardId);
+  const currentStep = getActiveStep(jobCard.status, jobCardId, invoice?.status);
 
   // Toggle step accordion
   const handleToggleStep = (stepNum: number) => {
@@ -94,214 +109,285 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     }
   };
 
-  // Render expanding content inside step
-  const renderStepDetails = (stepNum: number) => {
-    switch (stepNum) {
-      case 1:
-        return (
-          <View style={styles.detailsBox}>
-            {jobCard.appointment ? (
-              <>
-                <Text style={styles.detailsLabel}>APPOINTMENT ID</Text>
-                <Text style={styles.detailsVal}>{jobCard.appointment.apptNumber}</Text>
-                
-                <Text style={styles.detailsLabel}>BOOKED BRANCH</Text>
-                <Text style={styles.detailsVal}>{jobCard.center?.centerName || 'Service Center'}</Text>
-                
-                <Text style={styles.detailsLabel}>SCHEDULED TIME</Text>
-                <Text style={styles.detailsVal}>{formatDate(jobCard.appointment.scheduledAt)}</Text>
-              </>
-            ) : (
-              <Text style={styles.emptyStepDetailsText}>No appointment linked (Walk-in check-in).</Text>
-            )}
-          </View>
-        );
-      case 2:
-        return (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsLabel}>RECEIVED ODOMETER</Text>
-            <Text style={styles.detailsVal}>
-              {jobCard.odometerInKm ? `${jobCard.odometerInKm.toLocaleString()} km` : 'Not recorded'}
-            </Text>
+  const stepsData = [
+    {
+      id: 1,
+      title: 'Appointment confirmed',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          {jobCard.appointment ? (
+            <>
+              <Text style={styles.detailsLabel}>APPOINTMENT ID</Text>
+              <Text style={styles.detailsVal}>{jobCard.appointment.apptNumber}</Text>
+              
+              <Text style={styles.detailsLabel}>BOOKED BRANCH</Text>
+              <Text style={styles.detailsVal}>{jobCard.center?.centerName || 'Service Center'}</Text>
+              
+              <Text style={styles.detailsLabel}>SCHEDULED TIME</Text>
+              <Text style={styles.detailsVal}>{formatDate(jobCard.appointment.scheduledAt)}</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>No appointment linked (Walk-in check-in).</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 2,
+      title: 'Inspection',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>SERVICE ADVISOR</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.serviceAdvisor 
+              ? `${jobCard.serviceAdvisor.firstName} ${jobCard.serviceAdvisor.lastName}` 
+              : 'Not assigned'}
+          </Text>
 
-            <Text style={styles.detailsLabel}>RECEIPT TIME</Text>
-            <Text style={styles.detailsVal}>{formatDate(jobCard.openedAt)}</Text>
-          </View>
-        );
-      case 3:
-        return (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsLabel}>JOB CARD NUMBER</Text>
-            <Text style={styles.detailsVal}>{jobCard.jobNumber}</Text>
-            
-            <Text style={styles.detailsLabel}>SERVICE ADVISOR</Text>
-            <Text style={styles.detailsVal}>
-              {jobCard.serviceAdvisor 
-                ? `${jobCard.serviceAdvisor.firstName} ${jobCard.serviceAdvisor.lastName}` 
-                : 'Not assigned'}
-            </Text>
+          <Text style={styles.detailsLabel}>REPORTED COMPLAINTS</Text>
+          <Text style={styles.detailsVal}>{jobCard.reportedComplaint || 'No complaints logged.'}</Text>
+          
+          <Text style={styles.detailsLabel}>DIAGNOSTICS CHECKLIST</Text>
+          {loadingInspections ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : inspections && inspections.length > 0 && !isMock ? (
+            inspections.map((ins: any) => (
+              <View key={ins.inspectionId} style={styles.listItem}>
+                <Feather 
+                  name={ins.result === 'passed' ? 'check' : (ins.result === 'warning' ? 'alert-triangle' : 'x')} 
+                  size={13} 
+                  color={ins.result === 'passed' ? '#95d03a' : (ins.result === 'warning' ? '#eab308' : '#ef4444')} 
+                />
+                <Text style={styles.listItemText}>{ins.checkpoint} ({ins.result})</Text>
+              </View>
+            ))
+          ) : isMock ? (
+            <>
+              <View style={styles.listItem}>
+                <Feather name="check" size={13} color="#95d03a" />
+                <Text style={styles.listItemText}>Braking efficiency verification (passed)</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="check" size={13} color="#95d03a" />
+                <Text style={styles.listItemText}>Software diagnostic logs check (passed)</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="check" size={13} color="#95d03a" />
+                <Text style={styles.listItemText}>Charger port connection lock test (passed)</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>No diagnostics checks logged yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 3,
+      title: 'Service',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>LEAD TECHNICIAN</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.leadTechnician 
+              ? `${jobCard.leadTechnician.firstName} ${jobCard.leadTechnician.lastName}` 
+              : 'Not assigned'}
+          </Text>
 
-            <Text style={styles.detailsLabel}>REPORTED COMPLAINTS</Text>
-            <Text style={styles.detailsVal}>{jobCard.reportedComplaint || 'No complaints logged.'}</Text>
-          </View>
-        );
-      case 4:
-        return (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsLabel}>LEAD TECHNICIAN</Text>
-            <Text style={styles.detailsVal}>
-              {jobCard.leadTechnician 
-                ? `${jobCard.leadTechnician.firstName} ${jobCard.leadTechnician.lastName}` 
-                : 'Not assigned'}
-            </Text>
+          <Text style={styles.detailsLabel}>REPAIR ITEMS / SERVICES</Text>
+          {loadingServices ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : services && services.length > 0 && !isMock ? (
+            services.map((svc: any) => (
+              <View key={svc.jobServiceId} style={styles.listItem}>
+                <Feather 
+                  name={svc.status === 'completed' ? 'check-circle' : (svc.status === 'in_progress' ? 'loader' : 'clock')} 
+                  size={13} 
+                  color={svc.status === 'completed' ? '#95d03a' : (svc.status === 'in_progress' ? '#eab308' : '#71717a')} 
+                />
+                <Text style={styles.listItemText}>{svc.serviceName} ({svc.status})</Text>
+              </View>
+            ))
+          ) : isMock ? (
+            <>
+              <View style={styles.listItem}>
+                <Feather name="check-circle" size={13} color="#95d03a" />
+                <Text style={styles.listItemText}>Periodic Maintenance Service (completed)</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="check-circle" size={13} color="#95d03a" />
+                <Text style={styles.listItemText}>Battery diagnostics & calibration (completed)</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="loader" size={13} color="#eab308" />
+                <Text style={styles.listItemText}>Front & rear brake pads replacement (in_progress)</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>No repair services logged yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 4,
+      title: 'Parts',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>PARTS ISSUED</Text>
+          {loadingParts ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : parts && parts.length > 0 && !isMock ? (
+            parts.map((p: any) => (
+              <View key={p.jobPartId} style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>{p.partName} x {p.qty}</Text>
+              </View>
+            ))
+          ) : isMock ? (
+            <>
+              <View style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>Front Brake Pad Set x 1</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>Rear Brake Pad Set x 1</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>No spare parts requested yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 5,
+      title: 'Estimate',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          {loadingInvoice ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : invoice && !isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
+              <Text style={styles.detailsVal}>
+                {invoice.status === 'draft' || jobCard.status === 'awaiting_approval' ? 'Awaiting Customer Approval' : 'Approved'}
+              </Text>
 
-             <Text style={styles.detailsLabel}>REPAIR ITEMS / SERVICES</Text>
-            {loadingServices ? (
-              <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-            ) : services && services.length > 0 && !isMock ? (
-              services.map((svc: any) => (
-                <View key={svc.jobServiceId} style={styles.listItem}>
-                  <Feather 
-                    name={svc.status === 'completed' ? 'check-circle' : (svc.status === 'in_progress' ? 'loader' : 'clock')} 
-                    size={13} 
-                    color={svc.status === 'completed' ? '#95d03a' : (svc.status === 'in_progress' ? '#eab308' : '#71717a')} 
-                  />
-                  <Text style={styles.listItemText}>{svc.serviceName} ({svc.status})</Text>
-                </View>
-              ))
-            ) : isMock ? (
-              <>
-                <View style={styles.listItem}>
-                  <Feather name="check-circle" size={13} color="#95d03a" />
-                  <Text style={styles.listItemText}>Periodic Maintenance Service (completed)</Text>
-                </View>
-                <View style={styles.listItem}>
-                  <Feather name="check-circle" size={13} color="#95d03a" />
-                  <Text style={styles.listItemText}>Battery diagnostics & calibration (completed)</Text>
-                </View>
-                <View style={styles.listItem}>
-                  <Feather name="loader" size={13} color="#eab308" />
-                  <Text style={styles.listItemText}>Front & rear brake pads replacement (in_progress)</Text>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.emptyStepDetailsText}>No repair services logged yet.</Text>
-            )}
+              <Text style={styles.detailsLabel}>ESTIMATED AMOUNT</Text>
+              <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.grandTotal)).toLocaleString()}</Text>
+            </>
+          ) : isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
+              <Text style={styles.detailsVal}>Approved</Text>
 
-            <Text style={[styles.detailsLabel, { marginTop: 12 }]}>PARTS ISSUED</Text>
-            {loadingParts ? (
-              <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-            ) : parts && parts.length > 0 && !isMock ? (
-              parts.map((p: any) => (
-                <View key={p.jobPartId} style={styles.listItem}>
-                  <Feather name="package" size={13} color="#71717a" />
-                  <Text style={styles.listItemText}>{p.partName} x {p.qty}</Text>
-                </View>
-              ))
-            ) : isMock ? (
-              <>
-                <View style={styles.listItem}>
-                  <Feather name="package" size={13} color="#71717a" />
-                  <Text style={styles.listItemText}>Front Brake Pad Set x 1</Text>
-                </View>
-                <View style={styles.listItem}>
-                  <Feather name="package" size={13} color="#71717a" />
-                  <Text style={styles.listItemText}>Rear Brake Pad Set x 1</Text>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.emptyStepDetailsText}>No spare parts requested yet.</Text>
-            )}
-          </View>
-        );
-      case 5:
-        return (
-          <View style={styles.detailsBox}>
-             <Text style={styles.detailsLabel}>DIAGNOSTICS CHECKLIST</Text>
-            {loadingInspections ? (
-              <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-            ) : inspections && inspections.length > 0 && !isMock ? (
-              inspections.map((ins: any) => (
-                <View key={ins.inspectionId} style={styles.listItem}>
-                  <Feather 
-                    name={ins.result === 'passed' ? 'check' : (ins.result === 'warning' ? 'alert-triangle' : 'x')} 
-                    size={13} 
-                    color={ins.result === 'passed' ? '#95d03a' : (ins.result === 'warning' ? '#eab308' : '#ef4444')} 
-                  />
-                  <Text style={styles.listItemText}>{ins.checkpoint} ({ins.result})</Text>
-                </View>
-              ))
-            ) : isMock ? (
-              <>
-                <View style={styles.listItem}>
-                  <Feather name="check" size={13} color="#95d03a" />
-                  <Text style={styles.listItemText}>Braking efficiency verification (passed)</Text>
-                </View>
-                <View style={styles.listItem}>
-                  <Feather name="check" size={13} color="#95d03a" />
-                  <Text style={styles.listItemText}>Software diagnostic logs check (passed)</Text>
-                </View>
-                <View style={styles.listItem}>
-                  <Feather name="check" size={13} color="#95d03a" />
-                  <Text style={styles.listItemText}>Charger port connection lock test (passed)</Text>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.emptyStepDetailsText}>No diagnostics checks logged yet.</Text>
-            )}
-          </View>
-        );
-      case 6:
-        return (
-          <View style={styles.detailsBox}>
-             {loadingInvoice ? (
-              <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-            ) : invoice && !isMock ? (
-              <>
-                <Text style={styles.detailsLabel}>BILLING STATUS</Text>
-                <Text style={styles.detailsVal}>Invoice {invoice.invoiceNumber} generated</Text>
+              <Text style={styles.detailsLabel}>ESTIMATED AMOUNT</Text>
+              <Text style={styles.detailsVal}>₹10,500</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>Estimate details not available yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 6,
+      title: 'In Progress',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>WORKSHOP STATUS</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.status === 'quality_check' ? 'Quality assurance checks in-progress' : 'Active repairs and service fitting'}
+          </Text>
 
-                <Text style={styles.detailsLabel}>AMOUNT PAYABLE</Text>
-                <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.grandTotal)).toLocaleString()} ({invoice.status})</Text>
-              </>
-            ) : isMock ? (
-              <>
-                <Text style={styles.detailsLabel}>BILLING STATUS</Text>
-                <Text style={styles.detailsVal}>Invoice INV-2026-980 generated</Text>
+          <Text style={styles.detailsLabel}>SERVICE BAY</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.bay ? `Bay Code: ${jobCard.bay.bayCode} (${jobCard.bay.bayType || 'Service Bay'})` : 'Service Bay Area'}
+          </Text>
+        </View>
+      ),
+    },
+    {
+      id: 7,
+      title: 'Invoice',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          {loadingInvoice ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : invoice && !isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>INVOICE NUMBER</Text>
+              <Text style={styles.detailsVal}>{invoice.invoiceNumber}</Text>
 
-                <Text style={styles.detailsLabel}>AMOUNT PAYABLE</Text>
-                <Text style={styles.detailsVal}>₹10,500 (Payment Pending)</Text>
-              </>
-            ) : (
-              <Text style={styles.emptyStepDetailsText}>Billing details pending completion of repairs.</Text>
-            )}
-          </View>
-        );
-      case 7:
-        return (
-          <View style={styles.detailsBox}>
-            <Text style={styles.detailsLabel}>READY FOR COLLECTION</Text>
-            <Text style={styles.detailsVal}>
-              Promised Delivery: {jobCard.promisedAt ? formatDate(jobCard.promisedAt) : 'Pending status completion'}
-            </Text>
+              <Text style={styles.detailsLabel}>TAXABLE AMOUNT</Text>
+              <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.taxableAmount)).toLocaleString()}</Text>
 
-            <Text style={styles.detailsLabel}>PICKUP LOCATION</Text>
-            <Text style={styles.detailsVal}>
-              {jobCard.bay ? `Bay Code: ${jobCard.bay.bayCode} (${jobCard.bay.bayType || 'Service Bay'})` : 'Service Bay Area'}
-            </Text>
-          </View>
-        );
-      default:
-        return null;
-    }
-  };
+              <Text style={styles.detailsLabel}>GRAND TOTAL</Text>
+              <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.grandTotal)).toLocaleString()}</Text>
+            </>
+          ) : isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>INVOICE NUMBER</Text>
+              <Text style={styles.detailsVal}>INV-2026-980</Text>
 
-  // Get active step label for repair stage
-  const getRepairsLabel = () => {
-    if (jobCard.status === 'awaiting_approval') return 'Repairs - Awaiting Approval';
-    if (jobCard.status === 'awaiting_parts') return 'Repairs - Awaiting Parts';
-    return 'Repairs & parts fitting in-progress';
-  };
+              <Text style={styles.detailsLabel}>GRAND TOTAL</Text>
+              <Text style={styles.detailsVal}>₹10,500</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>Invoice not generated yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 8,
+      title: 'Payment',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          {loadingInvoice ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : invoice && !isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>PAYMENT STATUS</Text>
+              <Text style={styles.detailsVal}>{invoice.status.toUpperCase()}</Text>
+
+              <Text style={styles.detailsLabel}>AMOUNT PAID</Text>
+              <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.amountPaid)).toLocaleString()}</Text>
+            </>
+          ) : isMock ? (
+            <>
+              <Text style={styles.detailsLabel}>PAYMENT STATUS</Text>
+              <Text style={styles.detailsVal}>PENDING</Text>
+
+              <Text style={styles.detailsLabel}>AMOUNT PAID</Text>
+              <Text style={styles.detailsVal}>₹0</Text>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>Payment details not available yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 9,
+      title: 'Close',
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>VEHICLE DELIVERY</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.closedAt ? `Delivered on ${formatDate(jobCard.closedAt)}` : 'Awaiting delivery'}
+          </Text>
+
+          <Text style={styles.detailsLabel}>PROMISED TIME</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.promisedAt ? formatDate(jobCard.promisedAt) : 'N/A'}
+          </Text>
+        </View>
+      ),
+    },
+  ];
 
   return (
     <View style={styles.container}>
@@ -321,184 +407,44 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
         {/* Timeline container */}
         <View style={styles.timelineContainer}>
-          
-          {/* Step 1 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(1) ? styles.completedCircle : (isStepActive(1) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(1)}
-              >
-                {isStepCompleted(1) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(1) ? styles.activeDot : null}>
-                    <Text style={styles.circleText}>{!isStepActive(1) && '1'}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 1 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(1)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 1 && styles.boldStepTitle]}>Appointment confirmed</Text>
-              </TouchableOpacity>
-              {expandedStep === 1 && renderStepDetails(1)}
-            </View>
-          </View>
+          {stepsData.map((step, idx) => {
+            const isCompleted = isStepCompleted(step.id);
+            const isActive = isStepActive(step.id);
+            const isExpanded = expandedStep === step.id;
 
-          {/* Step 2 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(2) ? styles.completedCircle : (isStepActive(2) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(2)}
-              >
-                {isStepCompleted(2) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(2) ? styles.activeDot : null}>
-                    <Text style={styles.circleText}>{!isStepActive(2) && '2'}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 2 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(2)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 2 && styles.boldStepTitle]}>Vehicle received & gate pass issued</Text>
-              </TouchableOpacity>
-              {expandedStep === 2 && renderStepDetails(2)}
-            </View>
-          </View>
-
-          {/* Step 3 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(3) ? styles.completedCircle : (isStepActive(3) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(3)}
-              >
-                {isStepCompleted(3) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(3) ? styles.activeDot : null}>
-                    <Text style={styles.circleText}>{!isStepActive(3) && '3'}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 3 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(3)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 3 && styles.boldStepTitle]}>Inspection & job card opened</Text>
-              </TouchableOpacity>
-              {expandedStep === 3 && renderStepDetails(3)}
-            </View>
-          </View>
-
-          {/* Step 4 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(4) ? styles.completedCircle : (isStepActive(4) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(4)}
-              >
-                {isStepCompleted(4) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(4) ? styles.activeDot : null}>
-                    <Text style={styles.circleText}>{!isStepActive(4) && '4'}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 4 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(4)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 4 && styles.boldStepTitle]}>{getRepairsLabel()}</Text>
-                {isStepActive(4) && (
-                  <Text style={styles.stepSubtitle}>Repairs are active</Text>
-                )}
-              </TouchableOpacity>
-              {expandedStep === 4 && renderStepDetails(4)}
-            </View>
-          </View>
-
-          {/* Step 5 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(5) ? styles.completedCircle : (isStepActive(5) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(5)}
-              >
-                {isStepCompleted(5) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(5) ? styles.activeDot : null}>
-                    <Text style={[styles.circleText, isStepActive(5) && styles.activeCircleText]}>5</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 5 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(5)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 5 && styles.boldStepTitle]}>Quality assurance check</Text>
-              </TouchableOpacity>
-              {expandedStep === 5 && renderStepDetails(5)}
-            </View>
-          </View>
-
-          {/* Step 6 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(6) ? styles.completedCircle : (isStepActive(6) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(6)}
-              >
-                {isStepCompleted(6) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(6) ? styles.activeDot : null}>
-                    <Text style={[styles.circleText, isStepActive(6) && styles.activeCircleText]}>6</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={[styles.connectingLine, 6 < currentStep ? styles.completedLine : styles.pendingLine]} />
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(6)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 6 && styles.boldStepTitle]}>Wash & final billing</Text>
-              </TouchableOpacity>
-              {expandedStep === 6 && renderStepDetails(6)}
-            </View>
-          </View>
-
-          {/* Step 7 */}
-          <View style={styles.timelineRow}>
-            <View style={styles.leftLineCol}>
-              <TouchableOpacity 
-                style={[styles.indicatorCircle, isStepCompleted(7) ? styles.completedCircle : (isStepActive(7) ? styles.activeCircle : styles.pendingCircle)]}
-                onPress={() => handleToggleStep(7)}
-              >
-                {isStepCompleted(7) ? (
-                  <Feather name="check" size={14} color="#ffffff" />
-                ) : (
-                  <View style={isStepActive(7) ? styles.activeDot : null}>
-                    <Text style={[styles.circleText, isStepActive(7) && styles.activeCircleText]}>7</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
-            <View style={styles.contentCol}>
-              <TouchableOpacity onPress={() => handleToggleStep(7)} activeOpacity={0.8}>
-                <Text style={[styles.stepTitle, expandedStep === 7 && styles.boldStepTitle]}>Ready for pickup / delivery</Text>
-              </TouchableOpacity>
-              {expandedStep === 7 && renderStepDetails(7)}
-            </View>
-          </View>
-
+            return (
+              <View key={step.id} style={styles.timelineRow}>
+                <View style={styles.leftLineCol}>
+                  <TouchableOpacity 
+                    style={[
+                      styles.indicatorCircle, 
+                      isCompleted ? styles.completedCircle : (isActive ? styles.activeCircle : styles.pendingCircle)
+                    ]}
+                    onPress={() => handleToggleStep(step.id)}
+                  >
+                    {isCompleted ? (
+                      <Feather name="check" size={14} color="#ffffff" />
+                    ) : (
+                      <View style={isActive ? styles.activeDot : null}>
+                        {!isActive && (
+                          <Text style={styles.circleText}>{String(step.id)}</Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {idx < stepsData.length - 1 && (
+                    <View style={[styles.connectingLine, step.id < currentStep ? styles.completedLine : styles.pendingLine]} />
+                  )}
+                </View>
+                <View style={styles.contentCol}>
+                  <TouchableOpacity onPress={() => handleToggleStep(step.id)} activeOpacity={0.8}>
+                    <Text style={[styles.stepTitle, isExpanded && styles.boldStepTitle]}>{step.title}</Text>
+                  </TouchableOpacity>
+                  {isExpanded && step.renderDetails()}
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         {/* View inspection notes Button */}

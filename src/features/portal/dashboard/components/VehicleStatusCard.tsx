@@ -17,7 +17,13 @@ const CARD_WIDTH = width - 40; // Full width inside 20px padding container
 export interface VehicleCardItemData {
   id?: string;
   brand?: string;
-  model?: string;
+  model?: string | {
+    manufacturer?: {
+      name?: string;
+    };
+    modelName?: string;
+  };
+  modelName?: string;
   isPrimary?: boolean;
 }
 
@@ -78,7 +84,15 @@ export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
         decelerationRate="fast"
       >
         {vehicleList.map((item, idx) => {
-          const displayTitle = `${item.brand} ${item.model}`.replace(/FlutterFlirt Motors EV/gi, '').trim();
+          const brand = (typeof item.model === 'object' && item.model)
+            ? (item.model.manufacturer?.name || item.brand || '')
+            : (item.brand || '');
+          const model = (typeof item.model === 'object' && item.model)
+            ? (item.model.modelName || item.modelName || '') 
+            : (item.model || item.modelName || '');
+          const displayTitle = brand || model 
+            ? `${brand} ${model}`.replace(/FlutterFlirt Motors EV/gi, '').trim()
+            : '';
 
           return (
             <View key={item.id || `v_${idx}`} style={[styles.cardContainer, { width: CARD_WIDTH }]}>
