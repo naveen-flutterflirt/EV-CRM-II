@@ -12,7 +12,9 @@ export interface BookingPayload {
   channel?: string;
   jobType?: string;
   complaintText?: string;
+  status?: string;
 }
+
 
 export interface StateItem {
   stateId: string;

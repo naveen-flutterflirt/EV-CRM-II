@@ -13,16 +13,16 @@ interface JobCardTrackerScreenProps {
 
 const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: string): number => {
   if (jobCardId === '') return 1;
-  switch (status) {
+  const s = status ? status.toLowerCase() : '';
+  switch (s) {
     case 'open':
     case 'in_diagnosis':
       return 2; // Inspection
-    case 'in_progress':
-      return 3; // Service
     case 'awaiting_parts':
       return 4; // Parts
     case 'awaiting_approval':
       return 5; // Estimate
+    case 'in_progress':
     case 'quality_check':
       return 6; // In Progress
     case 'ready':
@@ -34,6 +34,7 @@ const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: strin
       }
       return 7; // invoice
     case 'delivered':
+    case 'closed':
       return 10; // 10 means all 9 steps are complete
     default:
       return 3;

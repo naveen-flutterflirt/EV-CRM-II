@@ -15,6 +15,7 @@ export function useActiveJobCard(customerId?: string) {
     queryKey: ['portal', 'jobCards', customerId],
     queryFn: () => fetchCustomerJobCardsApi(customerId || ''),
     enabled: !!customerId,
+    refetchInterval: 5000,
   });
 }
 
@@ -23,6 +24,7 @@ export function useJobCardHistory(jobCardId?: string) {
     queryKey: ['portal', 'jobCardHistory', jobCardId],
     queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
     enabled: !!jobCardId,
+    refetchInterval: 5000,
   });
 }
 
@@ -31,6 +33,7 @@ export function useJobCardInspections(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInspections', jobCardId],
     queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
     enabled: !!jobCardId,
+    refetchInterval: 5000,
   });
 }
 
@@ -39,6 +42,7 @@ export function useJobCardServices(jobCardId?: string) {
     queryKey: ['portal', 'jobCardServices', jobCardId],
     queryFn: () => fetchJobServicesApi(jobCardId || ''),
     enabled: !!jobCardId,
+    refetchInterval: 5000,
   });
 }
 
@@ -47,6 +51,7 @@ export function useJobCardParts(jobCardId?: string) {
     queryKey: ['portal', 'jobCardParts', jobCardId],
     queryFn: () => fetchJobPartsApi(jobCardId || ''),
     enabled: !!jobCardId,
+    refetchInterval: 5000,
   });
 }
 
@@ -55,6 +60,7 @@ export function useJobCardInvoice(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInvoice', jobCardId],
     queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
     enabled: !!jobCardId,
+    refetchInterval: 5000,
   });
 }
 
@@ -63,5 +69,6 @@ export function useCustomerAppointments(customerId?: string) {
     queryKey: ['portal', 'appointments', customerId],
     queryFn: () => fetchCustomerAppointmentsApi(customerId || ''),
     enabled: !!customerId,
+    refetchInterval: 5000,
   });
 }

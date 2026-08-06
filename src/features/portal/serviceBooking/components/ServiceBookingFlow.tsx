@@ -95,6 +95,7 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
       channel: formData.channel || 'mobile_app',
       jobType: formData.jobType || 'scheduled_maintenance',
       complaintText: formData.notes || '',
+      status: formData.status || 'requested',
     }, {
       onSuccess: () => {
         setStep(4);

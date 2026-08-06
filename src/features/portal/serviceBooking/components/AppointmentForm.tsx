@@ -596,6 +596,16 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             onSelect={(val) => setJobType(val)}
           />
 
+          {/* Status */}
+          <SelectorField
+            label="Status"
+            valueLabel={STATUSES.find(s => s.value === status)?.label || 'Requested'}
+            placeholder="Select Status..."
+            options={STATUSES}
+            onSelect={(val) => setStatus(val)}
+          />
+
+
           {/* Complaint / Notes */}
           <View style={styles.inputGroup}>
             <Text style={styles.fieldLabel}>Complaint / Notes</Text>
