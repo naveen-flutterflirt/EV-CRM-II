@@ -189,6 +189,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     if (jobCards && jobCards.length > 0) {
       const activeJC = jobCards.find(jc => jc.status !== 'delivered' && jc.status !== 'cancelled');
       if (activeJC) return activeJC;
+      
+      // Fallback: If no active in-progress job card, return the most recent one to track its completed state
+      return jobCards[0];
     }
 
     if (appointments && appointments.length > 0) {

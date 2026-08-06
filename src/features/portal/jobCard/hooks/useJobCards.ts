@@ -16,6 +16,7 @@ export function useActiveJobCard(customerId?: string) {
     queryFn: () => fetchCustomerJobCardsApi(customerId || ''),
     enabled: !!customerId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -25,6 +26,7 @@ export function useJobCardHistory(jobCardId?: string) {
     queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
     enabled: !!jobCardId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -34,6 +36,7 @@ export function useJobCardInspections(jobCardId?: string) {
     queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
     enabled: !!jobCardId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -43,6 +46,7 @@ export function useJobCardServices(jobCardId?: string) {
     queryFn: () => fetchJobServicesApi(jobCardId || ''),
     enabled: !!jobCardId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -52,6 +56,7 @@ export function useJobCardParts(jobCardId?: string) {
     queryFn: () => fetchJobPartsApi(jobCardId || ''),
     enabled: !!jobCardId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -61,6 +66,7 @@ export function useJobCardInvoice(jobCardId?: string) {
     queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
     enabled: !!jobCardId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }
 
@@ -70,5 +76,6 @@ export function useCustomerAppointments(customerId?: string) {
     queryFn: () => fetchCustomerAppointmentsApi(customerId || ''),
     enabled: !!customerId,
     refetchInterval: 5000,
+    staleTime: 0,
   });
 }

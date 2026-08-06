@@ -5,6 +5,7 @@ export function useCustomerDashboardHook() {
   const { data: dashboardData, isLoading: loading, error, refetch: refreshDashboard } = useQuery({
     queryKey: ["portal", "customer", "dashboard"],
     queryFn: fetchCustomerDashboardApi,
+    staleTime: 0,
   });
 
   return {
