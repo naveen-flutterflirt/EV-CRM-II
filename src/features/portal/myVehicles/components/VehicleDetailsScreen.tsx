@@ -173,7 +173,7 @@ interface CategoryGroup {
           </View>
         ))}
 
-        {/* Action Buttons Row: Remove Vehicle & Add Vehicle */}
+        {/* Bottom Actions Row: Remove Vehicle Button */}
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             style={styles.removeVehicleBtn}
@@ -182,15 +182,6 @@ interface CategoryGroup {
           >
             <Feather name="trash-2" size={18} color="#dc2626" />
             <Text style={styles.removeVehicleText}>Remove Vehicle</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.addVehicleBtn}
-            onPress={() => setShowAddModal(true)}
-            activeOpacity={0.85}
-          >
-            <Feather name="plus-circle" size={18} color="#2e5b02" />
-            <Text style={styles.addVehicleText}>Add Vehicle</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

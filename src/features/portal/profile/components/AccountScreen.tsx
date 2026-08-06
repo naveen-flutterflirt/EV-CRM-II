@@ -28,8 +28,8 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenSettings,
   onLogout,
 }) => {
-  const userName = user?.name || 'Rohan Mehta';
-  const userPhone = user?.phone || '+91 98765 43210';
+  const userName = user?.name || '';
+  const userPhone = user?.phone || '';
 
   const menuItems = [
     {

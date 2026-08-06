@@ -9,7 +9,7 @@ import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
 import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
-import { useCustomerVehicles, VehicleDetailsScreen } from '../../myVehicles';
+import { useCustomerVehicles, VehicleDetailsScreen, AddVehicleModal, VehicleSuccessModal } from '../../myVehicles';
 import {
   AccountScreen,
   EditProfileScreen,
@@ -168,12 +168,21 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const { dashboardData, loading, refreshDashboard } = useCustomerDashboardHook();
   const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD'>('HOME');
 
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   const customerId = dashboardData?.user?.customerId;
   const { vehicles, addVehicle } = useCustomerVehicles(customerId);
   const primaryVehicle = vehicles.length > 0 ? vehicles[0] : null;
 
   const { data: jobCards } = useActiveJobCard(customerId);
   const { data: appointments } = useCustomerAppointments(customerId);
+
+  const handleAddVehicle = async (payload: any) => {
+    await addVehicle(payload);
+    setShowAddVehicleModal(false);
+    setShowSuccessModal(true);
+  };
 
   // Find active job card or fallback to virtual job card from active appointment
   const getActiveJobCardOrVirtual = () => {
@@ -230,7 +239,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
           <VehicleDetailsScreen
             vehicle={primaryVehicle}
             onBack={() => setActiveTab('HOME')}
-            onAddVehicle={async (payload) => { await addVehicle(payload); }}
+            onAddVehicle={handleAddVehicle}
             onRemoveVehicle={() => {
               import('react-native').then(({ Alert }) => {
                 Alert.alert(
@@ -260,11 +269,12 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
       default:
         return (
           <>
-            {/* 1. Vehicle Status Card (Tapping opens Vehicle Details Screen) */}
+            {/* 1. Vehicle Status Card with Add Vehicle Button */}
             <TouchableOpacity onPress={() => setActiveTab('VEHICLES')} activeOpacity={0.9}>
               <VehicleStatusCard
                 vehicle={dashboardData?.vehicle}
                 vehicles={vehicles}
+                onAddVehiclePress={() => setShowAddVehicleModal(true)}
               />
             </TouchableOpacity>
 
@@ -329,10 +339,25 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               activities={dashboardData?.recentActivities}
             />
 
-            {/* 4. Battery Percentage & Range Card */}
+            {/* 4. Battery Percentage & Range Card with Real Metrics */}
             <BatteryRangeCard
-              batteryPct={dashboardData?.vehicle.batteryHealthPct}
-              rangeKm={dashboardData?.vehicle.currentRangeKm}
+              batteryPct={primaryVehicle?.batteryHealthPct ?? dashboardData?.vehicle?.batteryHealthPct}
+              rangeKm={primaryVehicle?.currentRangeKm ?? dashboardData?.vehicle?.currentRangeKm}
+              odometerKm={primaryVehicle?.odometerKm ?? (dashboardData?.vehicle as any)?.odometerKm}
+            />
+
+            {/* Vehicle Modals */}
+            <AddVehicleModal
+              visible={showAddVehicleModal}
+              onClose={() => setShowAddVehicleModal(false)}
+              onAddVehicle={handleAddVehicle}
+            />
+
+            <VehicleSuccessModal
+              visible={showSuccessModal}
+              onClose={() => setShowSuccessModal(false)}
+              title="Vehicle Registered Successfully"
+              message="Your vehicle has been successfully added to your garage."
             />
           </>
         );

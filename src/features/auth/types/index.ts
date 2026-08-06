@@ -9,6 +9,7 @@ export interface RegisterPayload {
   name: string;
   phone: string;
   email?: string;
+  previousEmail?: string;
   password?: string;
   firstName?: string;
   lastName?: string;
@@ -18,9 +19,7 @@ export interface RegisterPayload {
   gstin?: string;
   streetAddress?: string;
   state?: string;
-  state_id?: string;
   stateId?: string;
-  registered_center_id?: string;
   registeredCenterId?: string;
   city?: string;
   pincode?: string;

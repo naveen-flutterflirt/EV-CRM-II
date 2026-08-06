@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  TouchableOpacity,
   Image,
   Dimensions,
   ScrollView,
@@ -30,11 +31,13 @@ export interface VehicleCardItemData {
 interface VehicleStatusCardProps {
   vehicle?: VehicleCardItemData;
   vehicles?: VehicleCardItemData[];
+  onAddVehiclePress?: () => void;
 }
 
 export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
   vehicle,
   vehicles,
+  onAddVehiclePress,
 }) => {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -61,6 +64,16 @@ export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
             <Text style={styles.label}>VEHICLE</Text>
             <Text style={styles.vehicleTitle}>No Registered Vehicle</Text>
           </View>
+          {onAddVehiclePress && (
+            <TouchableOpacity
+              style={styles.addVehicleBtn}
+              onPress={onAddVehiclePress}
+              activeOpacity={0.8}
+            >
+              <Feather name="plus" size={14} color="#2e5b02" />
+              <Text style={styles.addVehicleBtnText}>Add Vehicle</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.imageContainer}>
           <Image
@@ -96,7 +109,7 @@ export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
 
           return (
             <View key={item.id || `v_${idx}`} style={[styles.cardContainer, { width: CARD_WIDTH }]}>
-              {/* Upper Row: Title and Primary Badge */}
+              {/* Upper Row: Title, Primary Badge & Add Vehicle Button */}
               <View style={styles.topRow}>
                 <View style={styles.titleContainer}>
                   <Text style={styles.label}>VEHICLE</Text>
@@ -104,12 +117,26 @@ export const VehicleStatusCard: React.FC<VehicleStatusCardProps> = ({
                     {displayTitle || 'VoltX Prime'}
                   </Text>
                 </View>
-                {item.isPrimary || idx === 0 ? (
-                  <View style={styles.primaryBadge}>
-                    <Feather name="star" size={12} color="#ffffff" style={styles.starIcon} />
-                    <Text style={styles.primaryBadgeText}>PRIMARY</Text>
-                  </View>
-                ) : null}
+
+                <View style={styles.topRightActions}>
+                  {item.isPrimary || idx === 0 ? (
+                    <View style={styles.primaryBadge}>
+                      <Feather name="star" size={12} color="#ffffff" style={styles.starIcon} />
+                      <Text style={styles.primaryBadgeText}>PRIMARY</Text>
+                    </View>
+                  ) : null}
+
+                  {onAddVehiclePress && (
+                    <TouchableOpacity
+                      style={styles.addVehicleBtn}
+                      onPress={onAddVehiclePress}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="plus" size={14} color="#2e5b02" />
+                      <Text style={styles.addVehicleBtnText}>Add Vehicle</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {/* Center Image: Ather Scooter Product Shot */}
@@ -187,15 +214,19 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     fontFamily: 'PlusJakartaSans-Bold',
   },
+  topRightActions: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
   primaryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#95d03a',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: 12,
     flexShrink: 0,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
   },
   starIcon: {
     marginRight: 4,
@@ -203,6 +234,21 @@ const styles = StyleSheet.create({
   primaryBadgeText: {
     color: '#ffffff',
     fontSize: 10,
+    fontWeight: '800',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  addVehicleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#a2e52c',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  addVehicleBtnText: {
+    color: '#2e5b02',
+    fontSize: 11,
     fontWeight: '800',
     fontFamily: 'PlusJakartaSans-Bold',
   },
