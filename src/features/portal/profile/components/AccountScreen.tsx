@@ -30,8 +30,8 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
   onOpenSettings,
   onLogout,
 }) => {
-  const userName = user?.name;
-  const userPhone = user?.phone;
+  const userName = user?.name || '';
+  const userPhone = user?.phone || '';
   const handleProfilePress = onOpenViewProfile || onOpenEditProfile;
 
   const menuItems = [
