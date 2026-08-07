@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useCustomerDashboardHook } from '../hooks/useCustomerDashboard';
@@ -10,9 +10,11 @@ import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
 import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments } from '../../jobCard';
 import { useCustomerVehicles, VehicleDetailsScreen, AddVehicleModal, VehicleSuccessModal } from '../../myVehicles';
+import { DeleteConfirmModal } from '../../../../common/components/DeleteConfirmModal';
 import {
   AccountScreen,
   EditProfileScreen,
+  ViewProfileScreen,
   ServiceHistoryScreen,
   ServiceDetailScreen,
   SupportMainScreen,
@@ -23,12 +25,21 @@ import {
   TermsAndPrivacyScreen,
   useProfileState,
 } from '../../profile';
+import {
+  NotificationModal,
+  NotificationScreen,
+  fetchCustomerNotificationsApi,
+  markNotificationAsReadApi,
+  markAllNotificationsAsReadApi,
+  CustomerNotificationItem,
+} from '../../notifications';
 
 interface ProfileTabFlowProps {
   onGoToBooking?: () => void;
+  onLogoutRequest: () => void;
 }
 
-const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
+const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking, onLogoutRequest }) => {
   const {
     profile,
     serviceHistory,
@@ -44,8 +55,17 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
     setSelectedLanguage,
     openServiceDetail,
     handleSaveProfile,
-    handleLogout,
   } = useProfileState();
+
+  if (subView === 'VIEW_PROFILE') {
+    return (
+      <ViewProfileScreen
+        user={profile}
+        onEditProfile={() => setSubView('EDIT_PROFILE')}
+        onBack={() => setSubView('ACCOUNT')}
+      />
+    );
+  }
 
   if (subView === 'EDIT_PROFILE') {
     return (
@@ -53,7 +73,7 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
         user={profile}
         saving={saving}
         onSave={handleSaveProfile}
-        onBack={() => setSubView('ACCOUNT')}
+        onBack={() => setSubView('VIEW_PROFILE')}
       />
     );
   }
@@ -133,7 +153,7 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
         onOpenSecurity={() => setSubView('SECURITY')}
         onOpenTermsAndPrivacy={() => setSubView('TERMS_AND_PRIVACY')}
         onBack={() => setSubView('ACCOUNT')}
-        onLogout={handleLogout}
+        onLogout={onLogoutRequest}
       />
     );
   }
@@ -141,11 +161,12 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking }) => {
   return (
     <AccountScreen
       user={profile}
+      onOpenViewProfile={() => setSubView('VIEW_PROFILE')}
       onOpenEditProfile={() => setSubView('EDIT_PROFILE')}
       onOpenServiceHistory={() => setSubView('SERVICE_HISTORY')}
       onOpenSupport={() => setSubView('SUPPORT_MAIN')}
       onOpenSettings={() => setSubView('SETTINGS')}
-      onLogout={handleLogout}
+      onLogout={onLogoutRequest}
     />
   );
 };
@@ -169,11 +190,72 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD'>('HOME');
 
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalData, setSuccessModalData] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+  }>({
+    visible: false,
+    title: 'Vehicle Registered Successfully',
+    message: 'Your vehicle has been successfully added to your garage.',
+  });
+  const [showRemoveVehicleModal, setShowRemoveVehicleModal] = useState(false);
+  const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
+
+  const [showNotificationScreen, setShowNotificationScreen] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notifications, setNotifications] = useState<CustomerNotificationItem[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+
+  // Auto-fetch notifications on mount & poll every 10 seconds for real-time red dot updates
+  useEffect(() => {
+    let isMounted = true;
+    const fetchNotifs = async () => {
+      try {
+        const list = await fetchCustomerNotificationsApi();
+        if (isMounted) setNotifications(list);
+      } catch (_e) {}
+    };
+
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
+
+  const handleOpenNotifications = () => {
+    setShowNotificationScreen(true);
+  };
+
+  const handleBellPress = () => {
+    if (onNotificationPress) {
+      try { onNotificationPress(); } catch (_e) {}
+    }
+    handleOpenNotifications();
+  };
+
+  const handleMarkNotifRead = async (id: string) => {
+    await markNotificationAsReadApi(id);
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+  };
+
+  const handleMarkAllNotifsRead = async () => {
+    await markAllNotificationsAsReadApi();
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
 
   const customerId = dashboardData?.user?.customerId;
-  const { vehicles, addVehicle } = useCustomerVehicles(customerId);
+  const { vehicles, addVehicle, updateVehicle, removeVehicle, isRemoving } = useCustomerVehicles(customerId);
+  const { handleLogout } = useProfileState();
+  const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
   const primaryVehicle = vehicles.length > 0 ? vehicles[0] : null;
+  const activeVehicle = selectedVehicle || primaryVehicle;
 
   const { data: jobCards } = useActiveJobCard(customerId);
   const { data: appointments } = useCustomerAppointments(customerId);
@@ -181,7 +263,38 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const handleAddVehicle = async (payload: any) => {
     await addVehicle(payload);
     setShowAddVehicleModal(false);
-    setShowSuccessModal(true);
+    setSuccessModalData({
+      visible: true,
+      title: 'Vehicle Registered Successfully',
+      message: 'Your vehicle has been successfully added to your garage.',
+    });
+  };
+
+  const handleUpdateVehicle = async (vehicleId: string, payload: any) => {
+    await updateVehicle(vehicleId, payload);
+    setSuccessModalData({
+      visible: true,
+      title: 'Vehicle Updated Successfully',
+      message: 'Your vehicle details have been updated successfully.',
+    });
+  };
+
+  const handleConfirmRemoveVehicle = async () => {
+    if (activeVehicle?.id) {
+      try {
+        await removeVehicle(activeVehicle.id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    setShowRemoveVehicleModal(false);
+    setSelectedVehicle(null);
+    setActiveTab('HOME');
+  };
+
+  const handleConfirmLogout = () => {
+    setShowLogoutConfirmModal(false);
+    handleLogout();
   };
 
   // Find active job card or fallback to virtual job card from active appointment
@@ -200,7 +313,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
       );
       if (activeAppt) {
         return {
-          jobCardId: '',
+          jobCardId: activeAppt.appointmentId || '',
           jobNumber: activeAppt.apptNumber,
           customerId: activeAppt.customerId,
           vehicleId: activeAppt.vehicleId,
@@ -212,7 +325,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
           },
           status: 'open' as const,
           jobType: activeAppt.jobType,
-          priority: 'normal',
+          priority: 'normal' as const,
           openedAt: activeAppt.scheduledAt,
           center: activeAppt.center,
           vehicle: activeAppt.vehicle,
@@ -235,23 +348,21 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
           />
         );
       case 'VEHICLES':
+        if (!activeVehicle && vehicles.length === 0) {
+          setShowAddVehicleModal(true);
+          setActiveTab('HOME');
+          return null;
+        }
         return (
           <VehicleDetailsScreen
-            vehicle={primaryVehicle}
-            onBack={() => setActiveTab('HOME')}
-            onAddVehicle={handleAddVehicle}
-            onRemoveVehicle={() => {
-              import('react-native').then(({ Alert }) => {
-                Alert.alert(
-                  'Remove Vehicle',
-                  'Are you sure you want to remove this vehicle from your garage?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: () => setActiveTab('HOME') },
-                  ]
-                );
-              });
+            vehicle={activeVehicle}
+            onBack={() => {
+              setSelectedVehicle(null);
+              setActiveTab('HOME');
             }}
+            onAddVehicle={handleAddVehicle}
+            onUpdateVehicle={handleUpdateVehicle}
+            onRemoveVehicle={() => setShowRemoveVehicleModal(true)}
           />
         );
       case 'BOOK':
@@ -264,19 +375,28 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
           />
         );
       case 'PROFILE':
-        return <ProfileTabFlow onGoToBooking={() => setActiveTab('BOOK')} />;
+        return (
+          <ProfileTabFlow
+            onGoToBooking={() => setActiveTab('BOOK')}
+            onLogoutRequest={() => setShowLogoutConfirmModal(true)}
+          />
+        );
       case 'HOME':
       default:
         return (
           <>
             {/* 1. Vehicle Status Card with Add Vehicle Button */}
-            <TouchableOpacity onPress={() => setActiveTab('VEHICLES')} activeOpacity={0.9}>
+            <View>
               <VehicleStatusCard
                 vehicle={dashboardData?.vehicle}
                 vehicles={vehicles}
                 onAddVehiclePress={() => setShowAddVehicleModal(true)}
+                onSelectVehicle={(v) => {
+                  setSelectedVehicle(v);
+                  setActiveTab('VEHICLES');
+                }}
               />
-            </TouchableOpacity>
+            </View>
 
             {/* 2. Job Card Status Summary or No Active Job Card Empty State */}
             {activeJobCard ? (
@@ -324,13 +444,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                 if (onTrackService) onTrackService();
               }}
               onEmergencyRsa={() => {
-                import('react-native').then(({ Alert }) => {
-                  Alert.alert(
-                    'Emergency RSA',
-                    'Roadside Assistance requested. A service team is being dispatched to your location.',
-                    [{ text: 'OK' }]
-                  );
-                });
+                // Emergency RSA Action without Alert
               }}
             />
 
@@ -339,215 +453,155 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               activities={dashboardData?.recentActivities}
             />
 
-            {/* 4. Battery Percentage & Range Card with Real Metrics */}
+            {/* 4. Battery Percentage & Range Card with Real Odometer Metrics */}
             <BatteryRangeCard
               batteryPct={primaryVehicle?.batteryHealthPct ?? dashboardData?.vehicle?.batteryHealthPct}
               rangeKm={primaryVehicle?.currentRangeKm ?? dashboardData?.vehicle?.currentRangeKm}
-              odometerKm={primaryVehicle?.odometerKm ?? (dashboardData?.vehicle as any)?.odometerKm}
+              odometerKm={primaryVehicle?.odometerKm ?? (primaryVehicle as any)?.odometer_km ?? (dashboardData?.vehicle as any)?.odometerKm ?? (dashboardData?.vehicle as any)?.odometer_km}
             />
 
-            {/* Vehicle Modals */}
+            {/* Vehicle Add Modal */}
             <AddVehicleModal
               visible={showAddVehicleModal}
               onClose={() => setShowAddVehicleModal(false)}
               onAddVehicle={handleAddVehicle}
-            />
-
-            <VehicleSuccessModal
-              visible={showSuccessModal}
-              onClose={() => setShowSuccessModal(false)}
-              title="Vehicle Registered Successfully"
-              message="Your vehicle has been successfully added to your garage."
             />
           </>
         );
     }
   };
 
+  if (showNotificationScreen) {
+    return <NotificationScreen onBack={() => setShowNotificationScreen(false)} />;
+  }
+
   return (
     <PortalLayout
       activeTab={activeTab === 'JOBCARD' ? 'HOME' : activeTab}
       onTabChange={(tab) => setActiveTab(tab)}
       user={dashboardData?.user}
+      unreadCount={unreadNotifCount}
       refreshing={loading}
       onRefresh={refreshDashboard}
-      onNotificationPress={onNotificationPress}
+      onNotificationPress={handleBellPress}
       onProfilePress={onProfilePress}
     >
       {renderTabContent()}
+
+      {/* Delete Vehicle Confirmation Modal */}
+      <DeleteConfirmModal
+        visible={showRemoveVehicleModal}
+        title="Remove Vehicle"
+        description="Are you sure you want to remove this vehicle from your profile? This action cannot be undone."
+        confirmText="Remove Vehicle"
+        cancelText="Cancel"
+        loading={isRemoving}
+        onConfirm={handleConfirmRemoveVehicle}
+        onCancel={() => setShowRemoveVehicleModal(false)}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <DeleteConfirmModal
+        visible={showLogoutConfirmModal}
+        title="Log Out"
+        description="Are you sure you want to log out of your EV CRM account?"
+        confirmText="Log Out"
+        cancelText="Cancel"
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutConfirmModal(false)}
+      />
+
+      {/* Real-time Customer Notifications Modal */}
+      <NotificationModal
+        visible={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        notifications={notifications}
+        loading={loadingNotifications}
+        onMarkRead={handleMarkNotifRead}
+        onMarkAllRead={handleMarkAllNotifsRead}
+      />
+
+      {/* Vehicle Registration & Update Success Popup Modal */}
+      <VehicleSuccessModal
+        visible={successModalData.visible}
+        title={successModalData.title}
+        message={successModalData.message}
+        onClose={() => setSuccessModalData((prev) => ({ ...prev, visible: false }))}
+      />
     </PortalLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  tabContentBlock: {
-    gap: 16,
-  },
-  tabHeading: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#18181b',
-    marginBottom: 8,
-  },
-  profileHeaderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e6f0d8',
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 8,
-  },
-  profileAvatarCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 18,
-    borderWidth: 1,
-    borderColor: '#c6d8b2',
-  },
-  profileMeta: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2b0c',
-    fontFamily: 'PlusJakartaSans-Bold',
-  },
-  profileSubText: {
-    fontSize: 14,
-    color: '#7a8a6b',
-    fontFamily: 'PlusJakartaSans-Regular',
-    marginTop: 2,
-  },
-  customerBadge: {
-    backgroundColor: '#a2e52c',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    marginTop: 6,
-    alignSelf: 'flex-start',
-  },
-  customerBadgeText: {
-    color: '#2e5b02',
-    fontSize: 9,
-    fontWeight: '800',
-    fontFamily: 'PlusJakartaSans-Bold',
-  },
-  detailsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 24,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 1,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  detailIcon: {
-    marginRight: 16,
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#9ca3af',
-    letterSpacing: 0.5,
-    fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 2,
-  },
-  detailValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a2b0c',
-    fontFamily: 'PlusJakartaSans-Medium',
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: '#f4f4f5',
-    width: '100%',
-  },
   jobTrackingCard: {
     backgroundColor: '#ffffff',
     borderRadius: 24,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    shadowColor: '#000000',
+    padding: 20,
+    marginBottom: 24,
+    borderColor: '#edf6d6',
+    borderWidth: 1.5,
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
   jobCardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
   wrenchIconBg: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#e6f0d8',
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#edf6d6',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
   jobCardTextContainer: {
     flex: 1,
+    paddingRight: 8,
   },
   jobCardLabel: {
     fontSize: 9,
     fontWeight: '800',
-    color: '#4d6a00',
-    letterSpacing: 0.5,
+    color: '#4d7c0f',
+    letterSpacing: 0.8,
     fontFamily: 'PlusJakartaSans-Bold',
     marginBottom: 2,
   },
   jobCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1c1c1e',
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   jobCardDesc: {
     fontSize: 12,
-    color: '#71717a',
-    fontFamily: 'PlusJakartaSans-Regular',
+    color: '#64748b',
     marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
   },
   progressContainer: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f4f4f5',
+    marginTop: 16,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#f4f4f5',
+    backgroundColor: '#f1f5f9',
     borderRadius: 3,
     overflow: 'hidden',
     marginBottom: 6,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#95d03a',
+    backgroundColor: '#a2e52c',
     borderRadius: 3,
   },
   progressText: {
     fontSize: 11,
-    color: '#71717a',
-    fontFamily: 'PlusJakartaSans-Regular',
+    color: '#64748b',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-SemiBold',
   },
 });

@@ -26,25 +26,36 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
   onSave,
   onBack,
 }) => {
-  const [fullName, setFullName] = useState(user?.name || 'Rohan Mehta');
-  const [phone, setPhone] = useState(user?.phone || '+91 98765 43210');
-  const [email, setEmail] = useState(user?.email || 'rohan.mehta@gmail.com');
-  const [dob, setDob] = useState(user?.dob || '12/04/1995');
-  const [gender, setGender] = useState(user?.gender || 'Male');
-  const [address, setAddress] = useState(
-    user?.defaultAddress || '402, Sapphire Heights, AB Road, Indore, MP 452001'
-  );
-  const [city, setCity] = useState(user?.location || 'Indore');
+  const [firstName, setFirstName] = useState(user?.firstName || user?.name?.split(' ')[0] || '');
+  const [lastName, setLastName] = useState(user?.lastName || user?.name?.split(' ').slice(1).join(' ') || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [gender, setGender] = useState(user?.gender || '');
+  const [addressLine1, setAddressLine1] = useState(user?.addressLine1 || user?.defaultAddress || '');
+  const [city, setCity] = useState(user?.city || user?.location || '');
+  const [pincode, setPincode] = useState(user?.pincode || '');
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleFormSubmit = () => {
+    setErrorMsg('');
+    if (!firstName.trim()) {
+      setErrorMsg('First name is required.');
+      return;
+    }
+    if (!phone.trim()) {
+      setErrorMsg('Phone number is required.');
+      return;
+    }
+
     onSave({
-      fullName,
-      phone,
-      email,
-      dob,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
       gender,
-      address,
-      city,
+      addressLine1: addressLine1.trim(),
+      city: city.trim(),
+      pincode: pincode.trim(),
     });
   };
 
@@ -55,7 +66,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Feather name="arrow-left" size={20} color="#0f172a" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit profile</Text>
+        <Text style={styles.headerTitle}>Edit Profile</Text>
 
         <TouchableOpacity onPress={handleFormSubmit} disabled={saving}>
           {saving ? (
@@ -67,6 +78,14 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Error Banner */}
+        {errorMsg ? (
+          <View style={styles.errorBox}>
+            <Feather name="alert-circle" size={16} color="#dc2626" style={{ marginRight: 6 }} />
+            <Text style={styles.errorText}>{errorMsg}</Text>
+          </View>
+        ) : null}
+
         {/* Avatar & Change Photo Section */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrap}>
@@ -85,32 +104,47 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Input Fields */}
+        {/* Form Fields Matching Customer Schema & GET /auth/me */}
         <View style={styles.formGroup}>
-          {/* Full Name */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>FULL NAME</Text>
-            <TextInput
-              style={[styles.inputBox, { outlineStyle: 'none' } as any]}
-              value={fullName}
-              onChangeText={setFullName}
-              placeholderTextColor="#94a3b8"
-            />
+          {/* 1. First Name & Last Name (2-Column Row) */}
+          <View style={styles.twoColRow}>
+            <View style={styles.colHalf}>
+              <Text style={styles.inputLabel}>FIRST NAME *</Text>
+              <TextInput
+                style={[styles.inputBox, { outlineStyle: 'none' } as any]}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            <View style={styles.colHalf}>
+              <Text style={styles.inputLabel}>LAST NAME</Text>
+              <TextInput
+                style={[styles.inputBox, { outlineStyle: 'none' } as any]}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last name"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
           </View>
 
-          {/* Phone Number */}
+          {/* 2. Phone Number */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>PHONE NUMBER</Text>
+            <Text style={styles.inputLabel}>PHONE NUMBER *</Text>
             <TextInput
               style={[styles.inputBox, { outlineStyle: 'none' } as any]}
               value={phone}
               onChangeText={setPhone}
               keyboardType="phone-pad"
+              placeholder="+91 98765 43210"
               placeholderTextColor="#94a3b8"
             />
           </View>
 
-          {/* Email Address with Verified Badge */}
+          {/* 3. Email Address */}
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>EMAIL ADDRESS</Text>
             <View style={styles.inputRowBox}>
@@ -119,6 +153,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
+                placeholder="email@example.com"
                 placeholderTextColor="#94a3b8"
               />
               <View style={styles.verifiedBadge}>
@@ -128,59 +163,64 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
             </View>
           </View>
 
-          {/* DOB & Gender 2-Column Row */}
+          {/* 4. Gender Selector */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>GENDER</Text>
+            <View style={styles.genderRow}>
+              {['Male', 'Female', 'Other'].map((g) => {
+                const isSelected = gender?.toLowerCase() === g.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.genderChip, isSelected && styles.genderChipSelected]}
+                    onPress={() => setGender(g)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.genderChipText, isSelected && styles.genderChipTextSelected]}>
+                      {g}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 5. Street Address */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>STREET ADDRESS</Text>
+            <TextInput
+              style={[styles.inputBox, { outlineStyle: 'none' } as any]}
+              value={addressLine1}
+              onChangeText={setAddressLine1}
+              placeholder="House/Flat No, Street, Area"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+
+          {/* 6. City & Pincode (2-Column Row) */}
           <View style={styles.twoColRow}>
             <View style={styles.colHalf}>
-              <Text style={styles.inputLabel}>DATE OF BIRTH</Text>
-              <View style={styles.inputRowBox}>
-                <TextInput
-                  style={[styles.inputBoxRow, { outlineStyle: 'none' } as any]}
-                  value={dob}
-                  onChangeText={setDob}
-                  placeholderTextColor="#94a3b8"
-                />
-                <Feather name="calendar" size={16} color="#64748b" />
-              </View>
+              <Text style={styles.inputLabel}>CITY</Text>
+              <TextInput
+                style={[styles.inputBox, { outlineStyle: 'none' } as any]}
+                value={city}
+                onChangeText={setCity}
+                placeholder="City"
+                placeholderTextColor="#94a3b8"
+              />
             </View>
 
             <View style={styles.colHalf}>
-              <Text style={styles.inputLabel}>GENDER</Text>
-              <View style={styles.inputRowBox}>
-                <TextInput
-                  style={[styles.inputBoxRow, { outlineStyle: 'none' } as any]}
-                  value={gender}
-                  onChangeText={setGender}
-                  placeholderTextColor="#94a3b8"
-                />
-                <Feather name="chevron-down" size={16} color="#64748b" />
-              </View>
-            </View>
-          </View>
-
-          {/* Default Address Card */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>DEFAULT ADDRESS</Text>
-            <View style={styles.addressCard}>
-              <View style={styles.addrTopRow}>
-                <View style={styles.pinCircle}>
-                  <Feather name="map-pin" size={14} color="#4d7c0f" />
-                </View>
-                <Text style={styles.addrText}>{address}</Text>
-              </View>
-
-              <TouchableOpacity style={styles.changeAddrTouch}>
-                <Text style={styles.changeAddrText}>CHANGE</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* City Preference Card */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>CITY PREFERENCE</Text>
-            <View style={styles.cityCard}>
-              <Feather name="database" size={16} color="#64748b" style={styles.cityIcon} />
-              <Text style={styles.cityText}>{city}</Text>
-              <Feather name="chevron-right" size={18} color="#cbd5e1" />
+              <Text style={styles.inputLabel}>PINCODE</Text>
+              <TextInput
+                style={[styles.inputBox, { outlineStyle: 'none' } as any]}
+                value={pincode}
+                onChangeText={setPincode}
+                keyboardType="numeric"
+                maxLength={6}
+                placeholder="452001"
+                placeholderTextColor="#94a3b8"
+              />
             </View>
           </View>
         </View>
@@ -198,7 +238,7 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({
             <ActivityIndicator size="small" color="#1a2b0c" />
           ) : (
             <>
-              <Text style={styles.saveSubmitText}>Save Changes</Text>
+              <Text style={styles.saveSubmitText}>Save Profile Changes</Text>
               <Feather name="check-circle" size={18} color="#1a2b0c" />
             </>
           )}
@@ -226,8 +266,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Bold',
   },
@@ -242,6 +282,23 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
   avatarSection: {
     alignItems: 'center',
@@ -285,7 +342,7 @@ const styles = StyleSheet.create({
   },
   formGroup: {
     gap: 16,
-    paddingBottom: 30,
+    paddingBottom: 40,
   },
   inputContainer: {},
   inputLabel: {
@@ -333,67 +390,41 @@ const styles = StyleSheet.create({
     color: '#4d7c0f',
     fontFamily: 'PlusJakartaSans-Bold',
   },
+  genderRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  genderChip: {
+    flex: 1,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#f5f3f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: 'transparent',
+    borderWidth: 1,
+  },
+  genderChipSelected: {
+    backgroundColor: '#edf6d6',
+    borderColor: '#4d7c0f',
+  },
+  genderChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    fontFamily: 'PlusJakartaSans-Medium',
+  },
+  genderChipTextSelected: {
+    fontWeight: '800',
+    color: '#4d7c0f',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
   twoColRow: {
     flexDirection: 'row',
     gap: 12,
   },
   colHalf: {
     flex: 1,
-  },
-  addressCard: {
-    backgroundColor: '#f5f3f7',
-    borderRadius: 16,
-    padding: 14,
-  },
-  addrTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  pinCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#eef6d6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
-  },
-  addrText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#334155',
-    lineHeight: 18,
-    fontFamily: 'PlusJakartaSans-Regular',
-  },
-  changeAddrTouch: {
-    alignSelf: 'flex-start',
-    paddingLeft: 38,
-  },
-  changeAddrText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#4d7c0f',
-    letterSpacing: 0.5,
-    fontFamily: 'PlusJakartaSans-Bold',
-  },
-  cityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f3f7',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  cityIcon: {
-    marginRight: 10,
-  },
-  cityText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0f172a',
-    fontFamily: 'PlusJakartaSans-Regular',
   },
   bottomBar: {
     paddingHorizontal: 20,

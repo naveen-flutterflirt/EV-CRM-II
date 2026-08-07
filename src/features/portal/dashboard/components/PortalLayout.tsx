@@ -12,6 +12,7 @@ interface PortalLayoutProps {
   headerTitle?: string;
   refreshing?: boolean;
   onRefresh?: () => void;
+  unreadCount?: number;
   onNotificationPress?: () => void;
   onProfilePress?: () => void;
 }
@@ -22,6 +23,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
   onTabChange,
   user,
   headerTitle,
+  unreadCount = 0,
   refreshing = false,
   onRefresh,
   onNotificationPress,
@@ -45,6 +47,7 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
       <PortalHeader
         title={getTitle()}
         user={user}
+        unreadCount={unreadCount}
         onNotificationPress={onNotificationPress}
         onProfilePress={onProfilePress}
       />
@@ -76,13 +79,13 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({
 const styles = StyleSheet.create({
   layoutRoot: {
     flex: 1,
-    backgroundColor: '#faf8f3',
+    backgroundColor: '#f8fafc',
   },
   mainScrollArea: {
     flex: 1,
   },
   scrollContentContainer: {
     padding: 18,
-    paddingBottom: 24,
+    paddingBottom: 10,
   },
 });

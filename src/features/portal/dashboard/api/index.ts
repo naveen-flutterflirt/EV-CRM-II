@@ -1,49 +1,50 @@
 import api from "../../../../config/axios";
+import { getAuthMeCached } from "../../../../common/services/authCache";
+import { fetchWithTtlCache } from "../../../../common/services/apiCache";
 import { CustomerDashboardData } from "../types";
 
+export async function fetchCustomerDashboardApi(forceRefresh = false): Promise<CustomerDashboardData> {
+  return fetchWithTtlCache("customer_dashboard", async () => {
+    try {
+      // 1. Fetch user data first to obtain customerId for scoping
+      const userRes = await getAuthMeCached(forceRefresh);
+      const userData = userRes.data?.data || userRes.data;
+      const customerId = userData?.customerId;
 
+      if (!customerId) {
+        throw new Error("Customer profile ID not found in /auth/me");
+      }
 
-export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData> {
-  try {
-    // 1. Fetch user data first to obtain customerId for scoping
-    const userRes = await api.get("/auth/me");
-    const userData = userRes.data?.data || userRes.data;
-    const customerId = userData?.customerId;
+      // 2. Fetch customer-scoped vehicles and job-cards using customerId filter
+      const vehicleUrl = `/vehicles?customerId=${customerId}`;
+      const jobCardUrl = `/job-cards?customerId=${customerId}`;
 
-    if (!customerId) {
-      throw new Error("Customer profile ID not found in /auth/me");
-    }
+      const [vehicleRes, activitiesRes] = await Promise.allSettled([
+        api.get(vehicleUrl),
+        api.get(jobCardUrl),
+      ]);
 
-    // 2. Fetch customer-scoped vehicles and job-cards using customerId filter
-    const vehicleUrl = `/vehicles?customerId=${customerId}`;
-    const jobCardUrl = `/job-cards?customerId=${customerId}`;
+      const vehicleData = vehicleRes.status === "fulfilled" ? vehicleRes.value.data?.data || vehicleRes.value.data : null;
+      const activityData = activitiesRes.status === "fulfilled" ? activitiesRes.value.data?.data || activitiesRes.value.data : null;
 
-    const [vehicleRes, activitiesRes] = await Promise.allSettled([
-      api.get(vehicleUrl),
-      api.get(jobCardUrl),
-    ]);
+      const firstVehicle = Array.isArray(vehicleData) && vehicleData.length > 0 ? vehicleData[0] : vehicleData;
+      const vehicleList = Array.isArray(vehicleData) ? vehicleData : (vehicleData?.data && Array.isArray(vehicleData.data) ? vehicleData.data : (firstVehicle ? [firstVehicle] : []));
+      const totalVehiclesCount = vehicleList.length || 0;
 
-    const vehicleData = vehicleRes.status === "fulfilled" ? vehicleRes.value.data?.data || vehicleRes.value.data : null;
-    const activityData = activitiesRes.status === "fulfilled" ? activitiesRes.value.data?.data || activitiesRes.value.data : null;
-
-    const firstVehicle = Array.isArray(vehicleData) && vehicleData.length > 0 ? vehicleData[0] : vehicleData;
-    const vehicleList = Array.isArray(vehicleData) ? vehicleData : (vehicleData?.data && Array.isArray(vehicleData.data) ? vehicleData.data : (firstVehicle ? [firstVehicle] : []));
-    const totalVehiclesCount = vehicleList.length || 0;
-
-    return {
-      user: {
-        id: userData?.id || userData?.userId || "",
-        customerId: userData?.customerId || undefined,
-        name: userData?.name || userData?.fullName || "",
-        location: userData?.city || userData?.location || "",
-        avatarUrl: userData?.avatarUrl || undefined,
-        branch: userData?.homeCenter?.centerName || "",
-        email: userData?.email || "",
-        phone: userData?.phone || "",
-      },
-      vehicle: firstVehicle
-        ? {
-            id: firstVehicle.id || firstVehicle.vehicleId || "",
+      return {
+        user: {
+          id: userData?.id || userData?.userId || "",
+          customerId: userData?.customerId || undefined,
+          name: userData?.name || userData?.fullName || "",
+          location: userData?.city || userData?.location || "",
+          avatarUrl: userData?.avatarUrl || undefined,
+          branch: userData?.homeCenter?.centerName || "",
+          email: userData?.email || "",
+          phone: userData?.phone || "",
+        },
+        vehicle: firstVehicle
+          ? {
+            id: firstVehicle.vehicleId || firstVehicle.id || firstVehicle.vehicle_id || "",
             brand: (() => {
               const rawBrand = firstVehicle.brand || firstVehicle.manufacturerName || firstVehicle.model?.manufacturer;
               if (!rawBrand) return "";
@@ -65,7 +66,7 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
             currentRangeKm: firstVehicle.currentRangeKm || firstVehicle.rangeKm || 0,
             totalVehiclesCount: totalVehiclesCount,
           }
-        : {
+          : {
             id: "",
             brand: "",
             model: "",
@@ -74,19 +75,20 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
             currentRangeKm: 0,
             totalVehiclesCount: 0,
           },
-      recentActivities: Array.isArray(activityData) && activityData.length > 0
-        ? activityData.map((act: any, idx: number) => ({
+        recentActivities: Array.isArray(activityData) && activityData.length > 0
+          ? activityData.map((act: any, idx: number) => ({
             id: act.id || act.jobCardId || `act_${idx}`,
             title: act.serviceName || act.title || act.jobNumber || "Service Activity",
             date: act.completedAt || act.openedAt || act.date || "",
-            type: act.status || "completed",
+            type: act.status,
             subtitle: `${act.openedAt || act.date || ''} • ${act.status || 'Status'}`,
           }))
-        : [],
-    };
-  } catch (error: any) {
-    const errorMsg = error.response?.data?.message || error.message || "Failed to load dashboard from database";
-    console.error("❌ Customer Dashboard API Error:", errorMsg);
-    throw new Error(errorMsg);
-  }
+          : [],
+      };
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.message || error.message || "Failed to load dashboard from database";
+      console.error("❌ Customer Dashboard API Error:", errorMsg);
+      throw new Error(errorMsg);
+    }
+  }, 180000, forceRefresh);
 }

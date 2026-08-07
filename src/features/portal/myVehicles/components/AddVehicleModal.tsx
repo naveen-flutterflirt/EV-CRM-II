@@ -7,18 +7,19 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
-  Alert,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { fetchVehicleMetaApi } from '../api';
-import { AddVehiclePayload, VehicleManufacturerMeta, VehicleModelMeta } from '../types';
+import { Vehicle, AddVehiclePayload, VehicleManufacturerMeta, VehicleModelMeta } from '../types';
 
 interface AddVehicleModalProps {
   visible: boolean;
   onClose: () => void;
   onAddVehicle: (payload: AddVehiclePayload) => Promise<void>;
+  initialData?: Vehicle | null;
+  isUpdate?: boolean;
+  onUpdateVehicle?: (vehicleId: string, payload: Partial<AddVehiclePayload>) => Promise<void>;
 }
 
 type VehicleStatusOption = 'active' | 'sold' | 'scrapped' | 'stolen';
@@ -27,6 +28,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   visible,
   onClose,
   onAddVehicle,
+  initialData,
+  isUpdate,
+  onUpdateVehicle,
 }) => {
   const [manufacturers, setManufacturers] = useState<VehicleManufacturerMeta[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
@@ -41,10 +45,16 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [odometerKm, setOdometerKm] = useState('0');
   const [status, setStatus] = useState<VehicleStatusOption>('active');
 
+  // Warranty Terms date fields (Matching Screenshot)
+  const [warrantyStart, setWarrantyStart] = useState('');
+  const [warrantyEnd, setWarrantyEnd] = useState('');
+  const [batteryWarrantyEnd, setBatteryWarrantyEnd] = useState('');
+
   const [showBrandDropdown, setShowBrandDropdown] = useState(false);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const statusOptions: { label: string; value: VehicleStatusOption }[] = [
     { label: 'Active', value: 'active' },
@@ -55,20 +65,59 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   useEffect(() => {
     if (visible) {
+      // Pre-fill fields if in edit/update mode
+      if (initialData) {
+        setRegistrationNumber(initialData.registrationNumber || (initialData as any).registrationNo || '');
+        setVin(initialData.vin || '');
+        setMotorNo(initialData.motorNo || '');
+        setColor(initialData.color || '');
+        setPurchaseDate(initialData.purchaseDate || '');
+        const rawOdo = initialData.odometerKm ?? (initialData as any).odometer_km ?? (initialData as any).currentOdometer;
+        setOdometerKm(rawOdo !== undefined && rawOdo !== null ? String(rawOdo) : '0');
+        setStatus((initialData.status as VehicleStatusOption) || 'active');
+        setWarrantyStart(initialData.warrantyStart || (initialData as any).warrantyStart || '');
+        setWarrantyEnd(initialData.warrantyEnd || (initialData as any).warrantyEnd || '');
+        setBatteryWarrantyEnd(initialData.batteryWarrantyEnd || (initialData as any).batteryWarrantyEnd || '');
+      } else {
+        setRegistrationNumber('');
+        setVin('');
+        setMotorNo('');
+        setColor('');
+        setPurchaseDate('');
+        setOdometerKm('0');
+        setStatus('active');
+        setWarrantyStart('');
+        setWarrantyEnd('');
+        setBatteryWarrantyEnd('');
+      }
+
       setLoadingMeta(true);
       fetchVehicleMetaApi()
         .then((data) => {
           setManufacturers(data);
           if (data.length > 0) {
-            setSelectedManufacturer(data[0]);
-            if (data[0].models && data[0].models.length > 0) {
-              setSelectedModel(data[0].models[0]);
+            let matchedMfg = data[0];
+            if (initialData?.brand) {
+              const targetBrand = String(initialData.brand).toLowerCase();
+              const found = data.find(m => m.name.toLowerCase().includes(targetBrand) || targetBrand.includes(m.name.toLowerCase()));
+              if (found) matchedMfg = found;
+            }
+            setSelectedManufacturer(matchedMfg);
+
+            if (matchedMfg.models && matchedMfg.models.length > 0) {
+              let matchedMod = matchedMfg.models[0];
+              if (initialData?.model) {
+                const targetModel = String(initialData.model).toLowerCase();
+                const foundMod = matchedMfg.models.find(m => m.modelName.toLowerCase().includes(targetModel) || targetModel.includes(m.modelName.toLowerCase()));
+                if (foundMod) matchedMod = foundMod;
+              }
+              setSelectedModel(matchedMod);
             }
           }
         })
         .finally(() => setLoadingMeta(false));
     }
-  }, [visible]);
+  }, [visible, initialData]);
 
   const handleSelectManufacturer = (mfg: VehicleManufacturerMeta) => {
     setSelectedManufacturer(mfg);
@@ -87,15 +136,14 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   const handleSubmit = async () => {
     if (!selectedModel || !registrationNumber.trim()) {
-      const msg = 'Please select Brand, Model, and enter Registration Number.';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Required Fields', msg);
+      setFormError('Please select Brand, Model, and enter Registration Number.');
       return;
     }
 
+    setFormError('');
     setSubmitting(true);
     try {
-      await onAddVehicle({
+      const payload: AddVehiclePayload = {
         modelId: selectedModel.modelId,
         brand: selectedManufacturer?.name || 'Ather Energy',
         model: selectedModel.modelName,
@@ -106,53 +154,64 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         purchaseDate: purchaseDate.trim() || undefined,
         odometerKm: odometerKm ? Number(odometerKm) : 0,
         status: status,
-      });
-      const msg = 'Vehicle added successfully!';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Success', msg);
-      setRegistrationNumber('');
-      setVin('');
-      setMotorNo('');
-      setColor('');
-      setPurchaseDate('');
-      setOdometerKm('0');
-      setStatus('active');
+        warrantyStart: warrantyStart.trim() || undefined,
+        warrantyEnd: warrantyEnd.trim() || undefined,
+        batteryWarrantyEnd: batteryWarrantyEnd.trim() || undefined,
+      };
+
+      const targetVehicleId = initialData?.id || (initialData as any)?.vehicleId || (initialData as any)?.vehicle_id;
+
+      if ((targetVehicleId || isEditingMode) && onUpdateVehicle) {
+        const vId = targetVehicleId || (initialData as any)?.id || (initialData as any)?.vehicleId || '';
+        console.log(`🌐 Executing Update Vehicle API for vehicleId: ${vId}`);
+        await onUpdateVehicle(vId, payload);
+      } else {
+        await onAddVehicle(payload);
+      }
+
       onClose();
     } catch (err: any) {
-      const msg = err.message || 'Failed to create vehicle.';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Error', msg);
+      setFormError(err.message || 'Failed to save vehicle details.');
     } finally {
       setSubmitting(false);
     }
   };
 
   const availableModels = selectedManufacturer?.models || [];
+  const isEditingMode = Boolean(initialData || isUpdate);
 
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
+      transparent
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
         <View style={styles.modalCard}>
-          {/* Header */}
+          {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add New EV Vehicle</Text>
+            <Text style={styles.modalTitle}>{isEditingMode ? 'Update Vehicle Details' : 'Register New Vehicle'}</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Feather name="x" size={20} color="#0f172a" />
+              <Feather name="x" size={22} color="#0f172a" />
             </TouchableOpacity>
           </View>
 
           {loadingMeta ? (
             <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color="#4d7c0f" />
-              <Text style={styles.loadingText}>Fetching Brands & Models...</Text>
+              <ActivityIndicator size="large" color="#4d7c0f" />
+              <Text style={styles.loadingText}>Fetching models catalog...</Text>
             </View>
           ) : (
             <ScrollView style={styles.formScroll} showsVerticalScrollIndicator={false}>
+              {/* Form Error Banner */}
+              {formError ? (
+                <View style={styles.errorBox}>
+                  <Feather name="alert-circle" size={16} color="#dc2626" style={{ marginRight: 6 }} />
+                  <Text style={styles.errorText}>{formError}</Text>
+                </View>
+              ) : null}
+
               <View style={styles.formGroup}>
                 {/* 1. Registration Number */}
                 <View style={styles.inputWrap}>
@@ -161,15 +220,15 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     style={[styles.input, { outlineStyle: 'none' } as any]}
                     value={registrationNumber}
                     onChangeText={setRegistrationNumber}
-                    placeholder="e.g. MP-04-EV-1024"
+                    placeholder="e.g. MP-04-EV-2026"
                     placeholderTextColor="#94a3b8"
                     autoCapitalize="characters"
                   />
                 </View>
 
-                {/* 2. Brand / Manufacturer Dropdown */}
+                {/* 2. Brand Selector */}
                 <View style={styles.inputWrap}>
-                  <Text style={styles.label}>MANUFACTURER / BRAND *</Text>
+                  <Text style={styles.label}>VEHICLE BRAND / MANUFACTURER *</Text>
                   <TouchableOpacity
                     style={styles.dropdownBtn}
                     onPress={() => {
@@ -180,7 +239,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     activeOpacity={0.8}
                   >
                     <Text style={styles.dropdownBtnText}>
-                      {selectedManufacturer?.name || 'Select Brand'}
+                      {selectedManufacturer ? selectedManufacturer.name : 'Select Manufacturer'}
                     </Text>
                     <Feather
                       name={showBrandDropdown ? 'chevron-up' : 'chevron-down'}
@@ -193,12 +252,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <View style={styles.dropdownListCard}>
                       {manufacturers.map((mfg) => (
                         <TouchableOpacity
-                          key={mfg.manufacturerId || mfg.name}
+                          key={mfg.manufacturerId}
                           style={styles.dropdownItem}
                           onPress={() => handleSelectManufacturer(mfg)}
                         >
                           <Text style={styles.dropdownItemText}>{mfg.name}</Text>
-                          {selectedManufacturer?.name === mfg.name && (
+                          {selectedManufacturer?.manufacturerId === mfg.manufacturerId && (
                             <Feather name="check" size={16} color="#4d7c0f" />
                           )}
                         </TouchableOpacity>
@@ -207,9 +266,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   )}
                 </View>
 
-                {/* 3. Model Name Dropdown */}
+                {/* 3. Model Selector */}
                 <View style={styles.inputWrap}>
-                  <Text style={styles.label}>MODEL NAME *</Text>
+                  <Text style={styles.label}>VEHICLE MODEL *</Text>
                   <TouchableOpacity
                     style={styles.dropdownBtn}
                     onPress={() => {
@@ -218,10 +277,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       setShowStatusDropdown(false);
                     }}
                     activeOpacity={0.8}
-                    disabled={availableModels.length === 0}
                   >
                     <Text style={styles.dropdownBtnText}>
-                      {selectedModel?.modelName || 'Select Model'}
+                      {selectedModel ? selectedModel.modelName : 'Select Model'}
                     </Text>
                     <Feather
                       name={showModelDropdown ? 'chevron-up' : 'chevron-down'}
@@ -234,7 +292,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <View style={styles.dropdownListCard}>
                       {availableModels.map((mod) => (
                         <TouchableOpacity
-                          key={mod.modelId || mod.modelName}
+                          key={mod.modelId}
                           style={styles.dropdownItem}
                           onPress={() => handleSelectModel(mod)}
                         >
@@ -255,7 +313,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     style={[styles.input, { outlineStyle: 'none' } as any]}
                     value={vin}
                     onChangeText={setVin}
-                    placeholder="e.g. ATH450X2026MOCK"
+                    placeholder="e.g. ME4ATH450X123456"
                     placeholderTextColor="#94a3b8"
                     autoCapitalize="characters"
                   />
@@ -268,34 +326,38 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     style={[styles.input, { outlineStyle: 'none' } as any]}
                     value={motorNo}
                     onChangeText={setMotorNo}
-                    placeholder="e.g. MOT-98765432"
+                    placeholder="e.g. MTR-450X-8890"
                     placeholderTextColor="#94a3b8"
                     autoCapitalize="characters"
                   />
                 </View>
 
-                {/* 6. Color */}
+                {/* 6. Exterior Color */}
                 <View style={styles.inputWrap}>
-                  <Text style={styles.label}>VEHICLE COLOR</Text>
+                  <Text style={styles.label}>EXTERIOR COLOR</Text>
                   <TextInput
                     style={[styles.input, { outlineStyle: 'none' } as any]}
                     value={color}
                     onChangeText={setColor}
-                    placeholder="e.g. Lime Green, Pearl White"
+                    placeholder="e.g. Cosmic Black"
                     placeholderTextColor="#94a3b8"
                   />
                 </View>
 
                 {/* 7. Purchase Date */}
                 <View style={styles.inputWrap}>
-                  <Text style={styles.label}>PURCHASE DATE (YYYY-MM-DD)</Text>
-                  <TextInput
-                    style={[styles.input, { outlineStyle: 'none' } as any]}
-                    value={purchaseDate}
-                    onChangeText={setPurchaseDate}
-                    placeholder="e.g. 2024-02-14"
-                    placeholderTextColor="#94a3b8"
-                  />
+                  <Text style={styles.label}>PURCHASE DATE</Text>
+                  <View style={styles.dateInputWrap}>
+                    <TextInput
+                      style={[styles.dateInput, { outlineStyle: 'none' } as any]}
+                      value={purchaseDate}
+                      onChangeText={setPurchaseDate}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#94a3b8"
+                      {...({ type: 'date' } as any)}
+                    />
+                    <Feather name="calendar" size={15} color="#475569" />
+                  </View>
                 </View>
 
                 {/* 8. Odometer Reading (KM) */}
@@ -353,6 +415,64 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     </View>
                   )}
                 </View>
+
+                {/* 10. Warranty Terms Section */}
+                <View style={styles.warrantySection}>
+                  <View style={styles.warrantyHeaderRow}>
+                    <Text style={styles.warrantyHeaderTitle}>WARRANTY TERMS</Text>
+                    <View style={styles.warrantyHeaderLine} />
+                  </View>
+
+                  <View style={styles.warrantyFieldsRow}>
+                    {/* Vehicle Warranty Start */}
+                    <View style={styles.warrantyCol}>
+                      <Text style={styles.label}>VEHICLE WARRANTY START</Text>
+                      <View style={styles.dateInputWrap}>
+                        <TextInput
+                          style={[styles.dateInput, { outlineStyle: 'none' } as any]}
+                          value={warrantyStart}
+                          onChangeText={setWarrantyStart}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor="#94a3b8"
+                          {...({ type: 'date' } as any)}
+                        />
+                        <Feather name="calendar" size={15} color="#475569" />
+                      </View>
+                    </View>
+
+                    {/* Vehicle Warranty End */}
+                    <View style={styles.warrantyCol}>
+                      <Text style={styles.label}>VEHICLE WARRANTY END</Text>
+                      <View style={styles.dateInputWrap}>
+                        <TextInput
+                          style={[styles.dateInput, { outlineStyle: 'none' } as any]}
+                          value={warrantyEnd}
+                          onChangeText={setWarrantyEnd}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor="#94a3b8"
+                          {...({ type: 'date' } as any)}
+                        />
+                        <Feather name="calendar" size={15} color="#475569" />
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Battery Warranty End */}
+                  <View style={[styles.inputWrap, { marginTop: 12 }]}>
+                    <Text style={styles.label}>BATTERY WARRANTY END</Text>
+                    <View style={styles.dateInputWrap}>
+                      <TextInput
+                        style={[styles.dateInput, { outlineStyle: 'none' } as any]}
+                        value={batteryWarrantyEnd}
+                        onChangeText={setBatteryWarrantyEnd}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor="#94a3b8"
+                        {...({ type: 'date' } as any)}
+                      />
+                      <Feather name="calendar" size={15} color="#475569" />
+                    </View>
+                  </View>
+                </View>
               </View>
 
               {/* Submit Action Button */}
@@ -366,8 +486,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   <ActivityIndicator color="#1a2b0c" />
                 ) : (
                   <>
-                    <Text style={styles.submitBtnText}>Add Vehicle to Garage</Text>
-                    <Feather name="plus-circle" size={18} color="#1a2b0c" />
+                    <Text style={styles.submitBtnText}>{isEditingMode ? 'Update Vehicle' : 'Add Vehicle to Garage'}</Text>
+                    <Feather name={isEditingMode ? 'check-circle' : 'plus-circle'} size={18} color="#1a2b0c" />
                   </>
                 )}
               </TouchableOpacity>
@@ -407,6 +527,23 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
   loadingBox: {
     alignItems: 'center',
@@ -459,40 +596,86 @@ const styles = StyleSheet.create({
   dropdownListCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
+    marginTop: 6,
+    padding: 8,
     borderColor: '#e2e8f0',
     borderWidth: 1,
-    marginTop: 6,
-    paddingVertical: 4,
-    elevation: 4,
-    shadowColor: '#000000',
+    shadowColor: '#64748b',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
   dropdownItemText: {
     fontSize: 13,
+    fontWeight: '600',
+    color: '#0f172a',
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  warrantySection: {
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  warrantyHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  warrantyHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#334155',
+    letterSpacing: 0.8,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  warrantyHeaderLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#f1f5f9',
+  },
+  warrantyFieldsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  warrantyCol: {
+    flex: 1,
+  },
+  dateInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    height: 44,
+    paddingHorizontal: 10,
+  },
+  dateInput: {
+    flex: 1,
+    fontSize: 12,
     color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Regular',
   },
   submitBtn: {
     backgroundColor: '#a2e52c',
-    borderRadius: 24,
+    borderRadius: 20,
     height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 20,
   },
   submitBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#1a2b0c',
     fontFamily: 'PlusJakartaSans-Bold',

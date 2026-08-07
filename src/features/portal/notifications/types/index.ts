@@ -1,8 +1,9 @@
-export interface AppNotification {
+export interface CustomerNotificationItem {
   id: string;
   title: string;
   body: string;
-  type: "JOB_STATUS" | "SERVICE_DUE" | "PROMO" | "PAYMENT";
-  read: boolean;
+  type?: string;
+  isRead: boolean;
   createdAt: string;
+  readAt?: string;
 }

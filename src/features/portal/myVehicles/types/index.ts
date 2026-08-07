@@ -37,6 +37,9 @@ export interface AddVehiclePayload {
   purchaseDate?: string;
   odometerKm?: number;
   status?: 'active' | 'sold' | 'scrapped' | 'stolen';
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  batteryWarrantyEnd?: string;
 }
 
 export interface VehicleModelMeta {
