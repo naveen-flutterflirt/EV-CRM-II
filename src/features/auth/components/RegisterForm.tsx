@@ -11,7 +11,6 @@ import {
   FlatList,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Cookies from 'js-cookie';
 import { useAuthHook } from '../hooks/useAuth';
 import { RegisterPayload } from '../types';
 import { fetchStatesApi, fetchServiceCentersApi, StateItem, ServiceCenterItem } from '../api';

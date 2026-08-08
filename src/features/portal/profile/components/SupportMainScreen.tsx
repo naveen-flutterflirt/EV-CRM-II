@@ -137,7 +137,7 @@ export const SupportMainScreen: React.FC<SupportMainScreenProps> = ({
             <View style={styles.emptyIconCircle}>
               <Feather name="help-circle" size={24} color="#94a3b8" />
             </View>
-            <Text style={styles.emptyText}>You don't have any recent inquiries</Text>
+            <Text style={styles.emptyText}>{"You don't have any recent inquiries"}</Text>
           </View>
         )}
 

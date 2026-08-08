@@ -99,7 +99,7 @@ export const ServiceHistoryScreen: React.FC<ServiceHistoryScreenProps> = ({
             <View style={styles.emptyIconCircle}>
               <Feather name="file-text" size={28} color="#94a3b8" />
             </View>
-            <Text style={styles.emptyTitle}>You don't have any service history yet</Text>
+            <Text style={styles.emptyTitle}>{"You don't have any service history yet"}</Text>
             <Text style={styles.emptySub}>Past service records and invoices will appear here once your vehicle receives service.</Text>
           </View>
         )}

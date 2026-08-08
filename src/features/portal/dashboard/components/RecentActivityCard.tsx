@@ -56,7 +56,7 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
             <View style={styles.emptyIconCircle}>
               <Feather name="clock" size={20} color="#94a3b8" />
             </View>
-            <Text style={styles.emptyText}>You don't have any recent activity</Text>
+            <Text style={styles.emptyText}>{"You don't have any recent activity"}</Text>
           </View>
         )}
       </Card>

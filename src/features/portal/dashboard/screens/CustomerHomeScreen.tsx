@@ -421,7 +421,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             </View>
             <Text style={styles.comingSoonTitle}>Live GPS Tracking</Text>
             <Text style={styles.comingSoonSubtitle}>
-              We are working on integrating real-time GPS tracking for your vehicle pick-up and service van dispatches. You will be able to track your technician's exact live location on a map right here.
+              {"We are working on integrating real-time GPS tracking for your vehicle pick-up and service van dispatches. You will be able to track your technician's exact live location on a map right here."}
             </Text>
             <View style={styles.comingSoonBadge}>
               <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>

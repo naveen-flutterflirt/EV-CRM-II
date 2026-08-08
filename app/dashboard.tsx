@@ -1,6 +1,6 @@
 import React from 'react';
 import { router } from 'expo-router';
-import Cookies from 'js-cookie';
+import { cookieStore } from '../src/common/services/cookieStore';
 import api from '../src/config/axios';
 import { invalidateAuthMeCache } from '../src/common/services/authCache';
 import { invalidateAllCache } from '../src/common/services/apiCache';
@@ -12,9 +12,9 @@ export default function DashboardRoute() {
       await api.post("/auth/logout");
     } catch (_e) {}
     // Clear cookies/tokens
-    Cookies.remove("token");
-    Cookies.remove("accessToken");
-    Cookies.remove("userRole");
+    cookieStore.remove("token");
+    cookieStore.remove("accessToken");
+    cookieStore.remove("userRole");
     invalidateAuthMeCache();
     invalidateAllCache();
     

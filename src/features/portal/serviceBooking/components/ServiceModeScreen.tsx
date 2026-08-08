@@ -85,7 +85,7 @@ export const ServiceModeScreen: React.FC<ServiceModeScreenProps> = ({
           </View>
           <View style={styles.cardDetails}>
             <Text style={styles.cardTitle}>Doorstep pickup</Text>
-            <Text style={styles.cardSubtitle}>We'll collect and return your vehicle</Text>
+            <Text style={styles.cardSubtitle}>{"We'll collect and return your vehicle"}</Text>
           </View>
         </View>
 

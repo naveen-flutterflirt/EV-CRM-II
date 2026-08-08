@@ -219,9 +219,9 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
             <View style={styles.emptyIconBadge}>
               <Feather name="bell-off" size={32} color="#84cc16" />
             </View>
-            <Text style={styles.emptyTitle}>You're All Caught Up!</Text>
+            <Text style={styles.emptyTitle}>{"You're All Caught Up!"}</Text>
             <Text style={styles.emptySubtitle}>
-              You don't have any new notifications at the moment. We'll alert you here as soon as there are updates regarding your EV or service bookings.
+              {"You don't have any new notifications at the moment. We'll alert you here as soon as there are updates regarding your EV or service bookings."}
             </Text>
           </View>
         )}

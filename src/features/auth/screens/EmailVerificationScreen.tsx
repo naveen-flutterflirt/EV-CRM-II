@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Cookies from 'js-cookie';
+import { cookieStore } from '../../../common/services/cookieStore';
 import { sendOtpApi, verifyOtpApi } from '../api';
 
 const { width } = Dimensions.get('window');
@@ -97,8 +97,8 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
       const res = await verifyOtpApi(email, otpCode);
       if (res.success) {
         if (res.token) {
-          Cookies.set("token", res.token, { expires: 7 });
-          Cookies.set("userRole", res.user?.role?.roleCode || "customer", { expires: 7 });
+          cookieStore.set("token", res.token, { expires: 7 });
+          cookieStore.set("userRole", res.user?.role?.roleCode || "customer", { expires: 7 });
         }
         onVerificationSuccess(res.user);
       } else {
@@ -151,7 +151,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
         {phase === 'email' ? (
           <>
             <Text style={styles.title}>Enter your Email</Text>
-            <Text style={styles.subtitle}>We'll send an OTP to verify</Text>
+            <Text style={styles.subtitle}>{"We'll send an OTP to verify"}</Text>
 
             {error && <Text style={styles.errorText}>{error}</Text>}
             {message && <Text style={styles.successText}>{message}</Text>}
@@ -189,7 +189,7 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
         ) : (
           <>
             <Text style={styles.title}>Enter Code</Text>
-            <Text style={styles.subtitle}>We've sent a 6-digit code to {email}</Text>
+            <Text style={styles.subtitle}>{`We've sent a 6-digit code to ${email}`}</Text>
 
             {error && <Text style={styles.errorText}>{error}</Text>}
             {message && <Text style={styles.successText}>{message}</Text>}

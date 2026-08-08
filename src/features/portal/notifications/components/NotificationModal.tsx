@@ -83,7 +83,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
               </View>
               <Text style={styles.emptyTitle}>All Caught Up!</Text>
               <Text style={styles.emptySubtitle}>
-                You don't have any new notifications at the moment. We'll update you here as soon as there are alerts regarding your EV or services.
+                {"You don't have any new notifications at the moment. We'll update you here as soon as there are alerts regarding your EV or services."}
               </Text>
             </View>
           ) : (

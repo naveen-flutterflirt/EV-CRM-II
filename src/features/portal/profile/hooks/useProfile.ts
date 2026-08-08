@@ -17,7 +17,8 @@ import {
   LanguageOption,
   ProfileSubView,
 } from "../types";
-import Cookies from "js-cookie";
+import { cookieStore } from "../../../../common/services/cookieStore";
+import { router } from "expo-router";
 import api from "../../../../config/axios";
 import { invalidateAuthMeCache } from "../../../../common/services/authCache";
 import { invalidateAllCache } from "../../../../common/services/apiCache";
@@ -80,13 +81,17 @@ export function useProfileState() {
     try {
       await api.post("/auth/logout");
     } catch (_e) {}
-    Cookies.remove("token");
-    Cookies.remove("accessToken");
-    Cookies.remove("userRole");
+    cookieStore.remove("token");
+    cookieStore.remove("accessToken");
+    cookieStore.remove("userRole");
     invalidateAuthMeCache();
     invalidateAllCache();
-    if (typeof window !== "undefined") {
-      window.location.href = "/";
+    try {
+      router.replace("/");
+    } catch (_e) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
     }
   };
 

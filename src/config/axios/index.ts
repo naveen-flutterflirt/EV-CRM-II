@@ -1,5 +1,5 @@
 import axios from "axios";
-import Cookies from "js-cookie";
+import { cookieStore } from "../../common/services/cookieStore";
 import { Platform } from "react-native";
 
 const DEFAULT_HOST = Platform.OS === "android" ? "http://192.168.1.39:5001/api" : "http://localhost:5001/api";
@@ -18,7 +18,7 @@ api.interceptors.request.use(
     // Live Request Logging for Developer Verification
     console.log(`🌐 [API REQUEST] ${config.method?.toUpperCase()} -> ${config.baseURL}${config.url}`, config.data || "");
 
-    const token = Cookies.get("token") || Cookies.get("accessToken");
+    const token = cookieStore.get("token") || cookieStore.get("accessToken");
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -51,8 +51,8 @@ api.interceptors.response.use(
 
     const isAuthRoute = error.config?.url?.includes("/auth/login") || error.config?.url?.includes("/auth/register");
     if (status === 401 && !isAuthRoute) {
-      Cookies.remove("token");
-      Cookies.remove("userRole");
+      cookieStore.remove("token");
+      cookieStore.remove("userRole");
     }
 
     if (error.response) {

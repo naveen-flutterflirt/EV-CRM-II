@@ -63,7 +63,7 @@ export const ServiceDetailScreen: React.FC<ServiceDetailScreenProps> = ({
           </View>
           <Text style={styles.emptyTitle}>No Service Details Found</Text>
           <Text style={styles.emptySubtitle}>
-            You don't have any recent service activity or record details right now. Keep your EV running smooth by scheduling a routine checkup.
+            {"You don't have any recent service activity or record details right now. Keep your EV running smooth by scheduling a routine checkup."}
           </Text>
 
           {onBookNextService && (

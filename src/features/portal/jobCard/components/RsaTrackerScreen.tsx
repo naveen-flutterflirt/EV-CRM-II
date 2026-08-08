@@ -85,7 +85,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
       <View style={styles.errorContainer}>
         <Feather name="alert-triangle" size={48} color="#ef4444" />
         <Text style={styles.errorTitle}>Failed to Load Status</Text>
-        <Text style={styles.errorText}>We couldn't retrieve the roadside assistance details.</Text>
+        <Text style={styles.errorText}>{"We couldn't retrieve the roadside assistance details."}</Text>
         <TouchableOpacity style={styles.errorBackButton} onPress={onBack}>
           <Text style={styles.errorBackButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -121,7 +121,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
           <Text style={styles.detailText}>• Channel: Mobile App SOS</Text>
           <Text style={styles.detailText}>• Issue Type: {request.issueType?.replace(/_/g, ' ').toUpperCase()}</Text>
           {request.issueDescription ? (
-            <Text style={styles.detailText}>• Notes: "{request.issueDescription}"</Text>
+            <Text style={styles.detailText}>• Notes: &quot;{request.issueDescription}&quot;</Text>
           ) : null}
         </View>
       ),
