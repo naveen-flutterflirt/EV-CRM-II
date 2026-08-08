@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   fetchCustomerJobCardsApi,
   fetchJobCardHistoryApi,
@@ -7,8 +7,11 @@ import {
   fetchJobPartsApi,
   fetchJobCardInvoiceApi,
   fetchCustomerAppointmentsApi,
+  fetchCustomerRsaRequestsApi,
+  fetchRsaRequestDetailsApi,
+  createSosRequestApi,
 } from '../api';
-import { JobCard, Appointment } from '../types';
+import { JobCard, Appointment, RsaRequest } from '../types';
 
 export function useActiveJobCard(customerId?: string) {
   return useQuery<JobCard[]>({
@@ -77,5 +80,31 @@ export function useCustomerAppointments(customerId?: string) {
     enabled: !!customerId,
     refetchInterval: 5000,
     staleTime: 0,
+  });
+}
+
+export function useCustomerRsaRequests(customerId?: string) {
+  return useQuery<RsaRequest[]>({
+    queryKey: ['portal', 'rsaRequests', customerId],
+    queryFn: () => fetchCustomerRsaRequestsApi(customerId || ''),
+    enabled: !!customerId,
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
+}
+
+export function useRsaRequestDetails(requestId?: string) {
+  return useQuery<RsaRequest>({
+    queryKey: ['portal', 'rsaRequestDetails', requestId],
+    queryFn: () => fetchRsaRequestDetailsApi(requestId || ''),
+    enabled: !!requestId,
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
+}
+
+export function useCreateSosRequest() {
+  return useMutation({
+    mutationFn: (payload: any) => createSosRequestApi(payload),
   });
 }

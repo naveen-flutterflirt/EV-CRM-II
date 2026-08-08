@@ -74,19 +74,43 @@ export async function fetchCustomerDashboardApi(): Promise<CustomerDashboardData
             currentRangeKm: 0,
             totalVehiclesCount: 0,
           },
-      recentActivities: Array.isArray(activityData) && activityData.length > 0
-        ? activityData.map((act: any, idx: number) => ({
-            id: act.id || act.jobCardId || `act_${idx}`,
-            title: act.serviceName || act.title || act.jobNumber || "Service Activity",
-            date: act.completedAt || act.openedAt || act.date || "",
+      recentActivities: (() => {
+        const closedJobCards = Array.isArray(activityData)
+          ? activityData.filter((act: any) => act.status === "delivered" || act.status === "cancelled")
+          : [];
+        return closedJobCards.map((act: any, idx: number) => {
+          const rawDate = act.closedAt || act.completedAt || act.openedAt || act.date;
+          const formattedDate = formatRecentActivityDate(rawDate);
+          const statusLabel = act.status === "delivered" ? "Delivered" : (act.status === "cancelled" ? "Cancelled" : act.status);
+          const serviceTypeLabel = act.jobType === "scheduled_maintenance" ? "Maintenance" : (act.jobType || "Service");
+          return {
+            id: act.jobCardId || act.id || `act_${idx}`,
+            title: act.jobNumber ? `Workshop Service: ${act.jobNumber}` : (act.serviceName || `Workshop Service (${serviceTypeLabel})`),
+            date: rawDate || "",
             type: act.status || "completed",
-            subtitle: `${act.openedAt || act.date || ''} • ${act.status || 'Status'}`,
-          }))
-        : [],
+            subtitle: `${formattedDate} • ${statusLabel}`,
+          };
+        });
+      })(),
     };
   } catch (error: any) {
     const errorMsg = error.response?.data?.message || error.message || "Failed to load dashboard from database";
     console.error("❌ Customer Dashboard API Error:", errorMsg);
     throw new Error(errorMsg);
+  }
+}
+
+function formatRecentActivityDate(dateStr?: string): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = d.getDate();
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day < 10 ? '0' + day : day} ${month} ${year}`;
+  } catch {
+    return dateStr;
   }
 }

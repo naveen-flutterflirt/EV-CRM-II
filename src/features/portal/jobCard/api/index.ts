@@ -1,5 +1,5 @@
 import api from '../../../../config/axios';
-import { JobCard, JobStatusHistory, JobInspection, JobService, JobPart, Invoice, Appointment } from '../types';
+import { JobCard, JobStatusHistory, JobInspection, JobService, JobPart, Invoice, Appointment, RsaRequest } from '../types';
 
 export async function fetchCustomerJobCardsApi(customerId: string): Promise<JobCard[]> {
   const res = await api.get(`/job-cards?customerId=${customerId}`);
@@ -54,4 +54,22 @@ export async function fetchCustomerAppointmentsApi(customerId: string): Promise<
   if (Array.isArray(rawData)) return rawData;
   if (rawData && Array.isArray(rawData.data)) return rawData.data;
   return [];
+}
+
+export async function fetchCustomerRsaRequestsApi(customerId: string): Promise<RsaRequest[]> {
+  const res = await api.get(`/rsa/requests?customerId=${customerId}`);
+  const rawData = res.data?.data || res.data;
+  if (Array.isArray(rawData)) return rawData;
+  if (rawData && Array.isArray(rawData.data)) return rawData.data;
+  return [];
+}
+
+export async function fetchRsaRequestDetailsApi(requestId: string): Promise<RsaRequest> {
+  const res = await api.get(`/rsa/requests/${requestId}`);
+  return res.data?.data || res.data;
+}
+
+export async function createSosRequestApi(payload: any): Promise<RsaRequest> {
+  const res = await api.post(`/rsa/requests/sos`, payload);
+  return res.data?.data || res.data;
 }

@@ -114,3 +114,65 @@ export interface Appointment {
     vin: string;
   };
 }
+
+export interface RsaRequest {
+  requestId: string;
+  requestNumber: string;
+  customerId: string;
+  vehicleId: string;
+  centerId?: string;
+  channel: string;
+  status: string;
+  issueType: string;
+  issueDescription?: string;
+  breakdownLatitude: number;
+  breakdownLongitude: number;
+  breakdownAddress?: string;
+  requestedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  isBilled?: boolean;
+  isClosed?: boolean;
+  enrouteAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
+  assignments?: RsaAssignment[];
+  customer?: {
+    customerId: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+  };
+  vehicle?: {
+    vehicleId: string;
+    registrationNo: string;
+    vin: string;
+    color?: string;
+    model?: {
+      modelName: string;
+    };
+  };
+}
+
+export interface RsaAssignment {
+  assignmentId: string;
+  requestId: string;
+  technicianId: string;
+  vanId?: string;
+  etaMinutes?: number;
+  status: string;
+  technician?: {
+    employeeId: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+  };
+  van?: {
+    vanId: string;
+    vanCode: string;
+    registrationNo: string;
+    makeModel: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}

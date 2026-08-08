@@ -1,61 +1,58 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '../../../../common/components/Card';
 import { ActivityItem } from '../types';
 
 interface RecentActivityCardProps {
   activities?: ActivityItem[];
+  onActivityPress?: (activity: ActivityItem) => void;
 }
 
-export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activities }) => {
-  const activityList = activities && activities.length > 0
-    ? activities
-    : [
-        {
-          id: '1',
-          title: 'Full vehicle health check-up',
-          date: '02 Jul 2026',
-          type: 'completed' as const,
-          subtitle: '02 Jul 2026 • Completed',
-        },
-        {
-          id: '2',
-          title: 'Software Update v2.4',
-          date: '28 Jun 2026',
-          type: 'over-the-air' as const,
-          subtitle: '28 Jun 2026 • Over-the-air',
-        },
-      ];
+export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activities, onActivityPress }) => {
+  const activityList = activities || [];
 
   return (
     <View style={styles.sectionContainer}>
       <Text style={styles.sectionTitle}>Recent activity</Text>
 
       <Card style={styles.cardContainer}>
-        {activityList.map((item, index) => {
-          const isLast = index === activityList.length - 1;
-          const isCompleted = item.type === 'completed';
+        {activityList.length > 0 ? (
+          activityList.map((item, index) => {
+            const isLast = index === activityList.length - 1;
+            const isCompleted = item.type === 'completed' || item.type === 'delivered' || item.type === 'closed';
 
-          return (
-            <View
-              key={item.id || index}
-              style={[styles.activityRow, !isLast && styles.rowBorder]}
-            >
-              {/* Icon Circle */}
-              <View style={[styles.iconCircle, isCompleted ? styles.completedCircle : styles.otaCircle]}>
-                <Text style={[styles.iconText, isCompleted ? styles.completedIconText : styles.otaIconText]}>
-                  {isCompleted ? '✓' : '⚡'}
-                </Text>
-              </View>
+            return (
+              <TouchableOpacity
+                key={item.id || index}
+                style={[styles.activityRow, !isLast && styles.rowBorder]}
+                onPress={() => onActivityPress && onActivityPress(item)}
+                activeOpacity={0.7}
+                disabled={!onActivityPress}
+              >
+                {/* Icon Circle */}
+                <View style={[styles.iconCircle, isCompleted ? styles.completedCircle : styles.otaCircle]}>
+                  <Text style={[styles.iconText, isCompleted ? styles.completedIconText : styles.otaIconText]}>
+                    {isCompleted ? '✓' : '⚡'}
+                  </Text>
+                </View>
 
-              {/* Text Info */}
-              <View style={styles.textContainer}>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
-              </View>
-            </View>
-          );
-        })}
+                {/* Text Info */}
+                <View style={styles.textContainer}>
+                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
+                </View>
+
+                {/* Chevron icon to show it is interactive */}
+                {onActivityPress && (
+                  <Feather name="chevron-right" size={16} color="#a1a1aa" />
+                )}
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <Text style={styles.noActivitiesText}>No recent activity logged yet.</Text>
+        )}
       </Card>
     </View>
   );
@@ -123,5 +120,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#71717a',
     marginTop: 2,
+  },
+  noActivitiesText: {
+    fontSize: 13,
+    color: '#71717a',
+    textAlign: 'center',
+    paddingVertical: 12,
+    fontFamily: 'PlusJakartaSans-Regular',
   },
 });

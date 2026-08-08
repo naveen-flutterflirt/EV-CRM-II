@@ -4,3 +4,4 @@ export * from './hooks/useJobCards';
 export * from './hooks/useCustomerJobCards';
 export * from './types';
 export * from './api';
+export * from './components/RsaTrackerScreen';

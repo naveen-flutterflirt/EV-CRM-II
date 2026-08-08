@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, Dimensions, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useJobCardHistory, useJobCardInspections, useJobCardServices, useJobCardParts, useJobCardInvoice } from '../hooks/useJobCards';
 import { JobCard } from '../types';
@@ -84,16 +84,6 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
   const currentStep = getActiveStep(jobCard.status, jobCardId, invoice?.status);
 
-  // Toggle step accordion
-  const handleToggleStep = (stepNum: number) => {
-    if (stepNum <= currentStep) {
-      setExpandedStep(expandedStep === stepNum ? null : stepNum);
-    }
-  };
-
-  const isStepCompleted = (stepNum: number) => stepNum < currentStep;
-  const isStepActive = (stepNum: number) => stepNum === currentStep;
-
   // Format dates cleanly
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
@@ -110,10 +100,46 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     }
   };
 
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return '--:--';
+    try {
+      const date = new Date(isoString);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return '--:--';
+    }
+  };
+
+  const getStatusTimeFromHistory = (targetStatus: string): string => {
+    if (!history || history.length === 0) return '--:--';
+    const match = history.find((h: any) => h.newStatus.toLowerCase() === targetStatus.toLowerCase());
+    return match ? formatTime(match.changedAt) : '--:--';
+  };
+
+  const getFriendlyJobCardStatusText = () => {
+    switch (jobCard.status.toLowerCase()) {
+      case 'open': return 'Job card opened and registered';
+      case 'reopened': return 'Job card reopened';
+      case 'in_diagnosis': return 'Vehicle diagnostics in progress';
+      case 'awaiting_approval': return 'Estimate invoice awaiting approval';
+      case 'awaiting_parts': return 'Awaiting spare parts sourcing';
+      case 'in_progress': return 'Repairs and service in progress';
+      case 'quality_check': return 'Quality QA checklist inspection';
+      case 'ready': return 'Work complete and ready for delivery';
+      case 'delivered': return 'Vehicle delivered to customer';
+      case 'closed': return 'Job card closed and archived';
+      case 'cancelled': return 'Job card cancelled';
+      default: return jobCard.status.replace(/_/g, ' ').toUpperCase();
+    }
+  };
+
   const stepsData = [
     {
       id: 1,
       title: 'Appointment confirmed',
+      description: 'Your service slot is scheduled and reserved.',
+      time: jobCard.appointment ? formatTime(jobCard.appointment.scheduledAt) : formatTime(jobCard.openedAt),
+      completed: true,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {jobCard.appointment ? (
@@ -136,6 +162,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 2,
       title: 'Inspection',
+      description: 'Service advisor logging reported complaints & starting electronic diagnostics check.',
+      time: getStatusTimeFromHistory('in_diagnosis') !== '--:--' ? getStatusTimeFromHistory('in_diagnosis') : getStatusTimeFromHistory('open'),
+      completed: currentStep >= 2,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>SERVICE ADVISOR</Text>
@@ -186,6 +215,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 3,
       title: 'Service',
+      description: 'Lead technician carrying out periodic maintenance checks.',
+      time: getStatusTimeFromHistory('in_progress'),
+      completed: currentStep >= 3,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>LEAD TECHNICIAN</Text>
@@ -233,6 +265,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 4,
       title: 'Parts',
+      description: 'Sourcing and fitting required mechanical & electrical parts.',
+      time: getStatusTimeFromHistory('awaiting_parts'),
+      completed: currentStep >= 4,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>PARTS ISSUED</Text>
@@ -265,6 +300,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 5,
       title: 'Estimate',
+      description: 'Workshop cost estimation awaiting customer approval.',
+      time: getStatusTimeFromHistory('awaiting_approval'),
+      completed: currentStep >= 5,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {loadingInvoice ? (
@@ -296,6 +334,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 6,
       title: 'In Progress',
+      description: 'Active mechanical repairs, part fittings, and calibration in service bay.',
+      time: getStatusTimeFromHistory('quality_check') !== '--:--' ? getStatusTimeFromHistory('quality_check') : getStatusTimeFromHistory('in_progress'),
+      completed: currentStep >= 6,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>WORKSHOP STATUS</Text>
@@ -313,6 +354,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 7,
       title: 'Invoice',
+      description: 'Tax invoice compiled and finalized for completed tasks.',
+      time: getStatusTimeFromHistory('ready'),
+      completed: currentStep >= 7,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {loadingInvoice ? (
@@ -345,6 +389,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 8,
       title: 'Payment',
+      description: 'Payment verification and checkout processing.',
+      time: invoice?.status === 'paid' ? formatTime(invoice.invoiceDate) : '--:--',
+      completed: currentStep >= 8,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {loadingInvoice ? (
@@ -374,6 +421,9 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     {
       id: 9,
       title: 'Close',
+      description: 'Final quality audit complete and vehicle delivered.',
+      time: jobCard.closedAt ? formatTime(jobCard.closedAt) : getStatusTimeFromHistory('delivered'),
+      completed: currentStep >= 9,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>VEHICLE DELIVERY</Text>
@@ -394,54 +444,133 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     <View style={styles.container}>
       {/* Top Header Title */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7}>
-          <Feather name="arrow-left" size={24} color="#1c1c1e" />
+        <TouchableOpacity style={styles.backButton} onPress={onBack}>
+          <Feather name="arrow-left" size={20} color="#18181b" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Job card status</Text>
+          <Text style={styles.headerTitle}>Job Card Status</Text>
           <Text style={styles.headerSubtitle}>
             {jobCard.vehicle ? `${jobCard.vehicle.registrationNo}` : 'Ather 450X'} — {jobCard.jobType === 'scheduled_maintenance' ? 'Periodic Maintenance' : jobCard.jobType}
           </Text>
         </View>
       </View>
 
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
-        {/* Timeline container */}
-        <View style={styles.timelineContainer}>
-          {stepsData.map((step, idx) => {
-            const isCompleted = isStepCompleted(step.id);
-            const isActive = isStepActive(step.id);
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Status Summary Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryRow}>
+            <View style={styles.wrenchIconBg}>
+              <Feather name="settings" size={18} color="#4d6a00" />
+            </View>
+            <View style={styles.summaryTextContainer}>
+              <Text style={styles.summaryLabel}>WORKSHOP REPAIRS & MAINTENANCE</Text>
+              <Text style={styles.summaryNumber}>
+                {jobCard.jobNumber}
+              </Text>
+              <Text style={styles.summaryStatusText}>{getFriendlyJobCardStatusText()}</Text>
+            </View>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBarBg}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${(Math.min(currentStep, 9) / 9) * 100}%` }
+                ]}
+              />
+            </View>
+            <Text style={styles.progressPercentageText}>
+              Step {currentStep === 10 ? 9 : currentStep} of 9 • {Math.round((Math.min(currentStep, 9) / 9) * 100)}% Complete
+            </Text>
+          </View>
+        </View>
+
+        {/* Steps Stepper List */}
+        <Text style={styles.timelineTitle}>WORKSHOP SERVICE LIFECYCLE</Text>
+
+        <View style={styles.stepperContainer}>
+          {stepsData.map((step, index) => {
+            const isActive = currentStep === 10 ? false : step.id === currentStep;
+            const isCompleted = step.completed && !isActive;
+            const isPending = !step.completed;
             const isExpanded = expandedStep === step.id;
 
             return (
-              <View key={step.id} style={styles.timelineRow}>
-                <View style={styles.leftLineCol}>
-                  <TouchableOpacity 
+              <View key={step.id} style={styles.stepContainer}>
+                {/* Visual Line & Dot */}
+                <View style={styles.stepLeftColumn}>
+                  <View
                     style={[
-                      styles.indicatorCircle, 
-                      isCompleted ? styles.completedCircle : (isActive ? styles.activeCircle : styles.pendingCircle)
+                      styles.stepDot,
+                      isCompleted ? styles.dotCompleted : (isActive ? styles.dotActive : styles.dotPending)
                     ]}
-                    onPress={() => handleToggleStep(step.id)}
                   >
                     {isCompleted ? (
-                      <Feather name="check" size={14} color="#ffffff" />
+                      <Feather name="check" size={12} color="#ffffff" />
                     ) : (
-                      <View style={isActive ? styles.activeDot : null}>
-                        {!isActive && (
-                          <Text style={styles.circleText}>{String(step.id)}</Text>
-                        )}
-                      </View>
+                      <Text
+                        style={[
+                          styles.dotText,
+                          isActive ? styles.dotTextActive : styles.dotTextPending
+                        ]}
+                      >
+                        {step.id}
+                      </Text>
                     )}
-                  </TouchableOpacity>
-                  {idx < stepsData.length - 1 && (
-                    <View style={[styles.connectingLine, step.id < currentStep ? styles.completedLine : styles.pendingLine]} />
+                  </View>
+                  {index < stepsData.length - 1 && (
+                    <View
+                      style={[
+                        styles.stepLine,
+                        step.completed ? styles.lineCompleted : null
+                      ]}
+                    />
                   )}
                 </View>
-                <View style={styles.contentCol}>
-                  <TouchableOpacity onPress={() => handleToggleStep(step.id)} activeOpacity={0.8}>
-                    <Text style={[styles.stepTitle, isExpanded && styles.boldStepTitle]}>{step.title}</Text>
+
+                {/* Right Text Column */}
+                <View style={styles.stepRightColumn}>
+                  <TouchableOpacity
+                    style={styles.stepHeaderRow}
+                    onPress={() => {
+                      if (step.completed) {
+                        setExpandedStep(isExpanded ? null : step.id);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.stepTextContent}>
+                      <Text
+                        style={[
+                          styles.stepTitle,
+                          isActive ? styles.stepTitleActive : (isPending ? styles.stepTitlePending : null)
+                        ]}
+                      >
+                        {step.title}
+                      </Text>
+                      <Text style={styles.stepDescription}>{step.description}</Text>
+                    </View>
+                    <View style={styles.stepTimeRow}>
+                      <Text style={styles.stepTimeText}>{step.time}</Text>
+                      {step.completed && (
+                        <Feather
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={16}
+                          color={isActive ? "#4d6a00" : "#71717a"}
+                          style={{ marginLeft: 8 }}
+                        />
+                      )}
+                    </View>
                   </TouchableOpacity>
-                  {isExpanded && step.renderDetails()}
+
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <View style={styles.expandedContentBox}>
+                      {step.renderDetails()}
+                    </View>
+                  )}
                 </View>
               </View>
             );
@@ -566,14 +695,14 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#faf8f3',
+    backgroundColor: '#faf9f6',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: Platform.OS === 'ios' ? 48 : 20,
     paddingBottom: 16,
+    paddingHorizontal: 20,
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#f4f4f5',
@@ -586,112 +715,208 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1a2b0c',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#18181b',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#71717a',
-    fontFamily: 'PlusJakartaSans-Regular',
-    marginTop: 2,
-  },
-  scrollArea: {
-    flex: 1,
-    padding: 20,
-  },
-  timelineContainer: {
-    paddingLeft: 4,
-    marginBottom: 24,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    marginBottom: 0,
-  },
-  leftLineCol: {
-    alignItems: 'center',
-    width: 32,
-  },
-  indicatorCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    zIndex: 2,
-  },
-  completedCircle: {
-    backgroundColor: '#4d6a00',
-    borderColor: '#4d6a00',
-  },
-  activeCircle: {
-    backgroundColor: '#ffffff',
-    borderColor: '#4d6a00',
-  },
-  pendingCircle: {
-    backgroundColor: '#e4e4e7',
-    borderColor: '#e4e4e7',
-  },
-  activeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#4d6a00',
-  },
-  circleText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#71717a',
-    fontFamily: 'PlusJakartaSans-Bold',
-  },
-  activeCircleText: {
-    color: '#4d6a00',
-  },
-  connectingLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 40,
-    zIndex: 1,
-    marginVertical: -2,
-  },
-  completedLine: {
-    backgroundColor: '#4d6a00',
-  },
-  pendingLine: {
-    backgroundColor: '#e4e4e7',
-  },
-  contentCol: {
-    flex: 1,
-    marginLeft: 16,
-    paddingTop: 4,
-    paddingBottom: 24,
-  },
-  stepTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#71717a',
-    fontFamily: 'PlusJakartaSans-SemiBold',
-  },
-  boldStepTitle: {
-    color: '#1a2b0c',
-    fontWeight: '700',
-    fontFamily: 'PlusJakartaSans-Bold',
-  },
-  stepSubtitle: {
     fontSize: 11,
     color: '#71717a',
     fontFamily: 'PlusJakartaSans-Regular',
     marginTop: 2,
   },
-  detailsBox: {
-    marginTop: 10,
-    padding: 12,
+  scrollContent: {
+    padding: 20,
+  },
+  summaryCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
+    borderRadius: 20,
+    padding: 20,
     borderWidth: 1,
     borderColor: '#e4e4e7',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  wrenchIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e6f0d8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  summaryTextContainer: {
+    flex: 1,
+  },
+  summaryLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#4d6a00',
+    letterSpacing: 1,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  summaryNumber: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#18181b',
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginVertical: 4,
+  },
+  summaryStatusText: {
+    fontSize: 13,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  progressContainer: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f4f4f5',
+    paddingTop: 16,
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#f4f4f5',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#95d03a',
+    borderRadius: 3,
+  },
+  progressPercentageText: {
+    fontSize: 11,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Medium',
+    marginTop: 8,
+  },
+  timelineTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#71717a',
+    letterSpacing: 1,
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginBottom: 16,
+  },
+  stepperContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+    marginBottom: 20,
+  },
+  stepContainer: {
+    flexDirection: 'row',
+    minHeight: 64,
+  },
+  stepLeftColumn: {
+    alignItems: 'center',
+    marginRight: 16,
+    width: 24,
+  },
+  stepDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    zIndex: 2,
+  },
+  dotCompleted: {
+    backgroundColor: '#4d6a00',
+    borderColor: '#4d6a00',
+  },
+  dotActive: {
+    backgroundColor: '#ffffff',
+    borderColor: '#4d6a00',
+  },
+  dotPending: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e4e4e7',
+  },
+  dotText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  dotTextActive: {
+    color: '#4d6a00',
+  },
+  dotTextPending: {
+    color: '#a1a1aa',
+  },
+  stepLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#f4f4f5',
+    marginVertical: 4,
+    zIndex: 1,
+  },
+  lineCompleted: {
+    backgroundColor: '#4d6a00',
+  },
+  stepRightColumn: {
+    flex: 1,
+    paddingBottom: 20,
+  },
+  stepHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  stepTextContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#18181b',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  stepTitleActive: {
+    color: '#4d6a00',
+  },
+  stepTitlePending: {
+    color: '#a1a1aa',
+  },
+  stepDescription: {
+    fontSize: 12,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Regular',
+    marginTop: 2,
+  },
+  stepTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepTimeText: {
+    fontSize: 11,
+    color: '#a1a1aa',
+    fontFamily: 'PlusJakartaSans-Medium',
+  },
+  expandedContentBox: {
+    marginTop: 10,
+    backgroundColor: '#faf9f6',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e4e4e7',
+  },
+  detailsBox: {
+    gap: 4,
   },
   detailsLabel: {
     fontSize: 9,
@@ -726,18 +951,23 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   inspectionBtn: {
-    backgroundColor: '#f3f0fa',
-    borderRadius: 24,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#4d6a00',
+    borderColor: '#e4e4e7',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
   inspectionBtnText: {
-    color: '#1a2b0c',
-    fontSize: 16,
+    color: '#4d6a00',
+    fontSize: 14,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
   },
@@ -753,7 +983,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  // Modal note stylesheet
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -866,7 +1095,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
   },
-  // Empty State Styles
   emptyScreenContainer: {
     flex: 1,
     backgroundColor: '#faf8f3',
@@ -923,4 +1151,5 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Bold',
   },
 });
+
 export default JobCardTrackerScreen;

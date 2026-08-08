@@ -23,7 +23,7 @@ export interface ActivityItem {
   id: string;
   title: string;
   date: string;
-  type: 'completed' | 'over-the-air' | 'in-progress' | 'scheduled';
+  type: string;
   subtitle: string;
 }
 
