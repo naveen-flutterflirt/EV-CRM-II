@@ -10,16 +10,17 @@ interface RecentActivityCardProps {
 }
 
 export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activities, onActivityPress }) => {
-  const activityList = activities || [];
+  const displayActivities = (activities || []).slice(0, 5);
+  const hasActivities = displayActivities.length > 0;
 
   return (
     <View style={styles.sectionContainer}>
       <Text style={styles.sectionTitle}>Recent activity</Text>
 
       <Card style={styles.cardContainer}>
-        {activityList.length > 0 ? (
-          activityList.map((item, index) => {
-            const isLast = index === activityList.length - 1;
+        {hasActivities ? (
+          displayActivities.map((item, index) => {
+            const isLast = index === displayActivities.length - 1;
             const isCompleted = item.type === 'completed' || item.type === 'delivered' || item.type === 'closed';
 
             return (
@@ -51,7 +52,12 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
             );
           })
         ) : (
-          <Text style={styles.noActivitiesText}>No recent activity logged yet.</Text>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Feather name="clock" size={20} color="#94a3b8" />
+            </View>
+            <Text style={styles.emptyText}>You don't have any recent activity</Text>
+          </View>
         )}
       </Card>
     </View>
@@ -60,13 +66,14 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
 
 const styles = StyleSheet.create({
   sectionContainer: {
-    marginBottom: 20,
+    marginBottom: 26,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#27272a',
     marginBottom: 10,
+    fontFamily: 'PlusJakartaSans-SemiBold',
   },
   cardContainer: {
     padding: 16,
@@ -115,11 +122,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#18181b',
+    fontFamily: 'PlusJakartaSans-SemiBold',
   },
   activitySubtitle: {
     fontSize: 12,
     color: '#71717a',
     marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  emptyContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
   noActivitiesText: {
     fontSize: 13,

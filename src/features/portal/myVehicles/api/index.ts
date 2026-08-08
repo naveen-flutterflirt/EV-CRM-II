@@ -1,11 +1,12 @@
 import api from "../../../../config/axios";
+import { getAuthMeCached } from "../../../../common/services/authCache";
 import { Vehicle, AddVehiclePayload, VehicleManufacturerMeta } from "../types";
 
 export async function fetchCustomerVehiclesApi(customerId?: string): Promise<Vehicle[]> {
   try {
     let resolvedCustomerId = customerId;
     if (!resolvedCustomerId) {
-      const userRes = await api.get("/auth/me");
+      const userRes = await getAuthMeCached();
       const userData = userRes.data?.data || userRes.data;
       resolvedCustomerId = userData?.customerId;
     }
@@ -19,7 +20,7 @@ export async function fetchCustomerVehiclesApi(customerId?: string): Promise<Veh
 
     if (Array.isArray(rawData)) {
       return rawData.map((item: any, idx: number) => ({
-        id: item.id || item.vehicleId || `veh_${idx}`,
+        id: item.vehicleId || item.id || item.vehicle_id || `veh_${idx}`,
         brand: typeof item.brand === "object"
           ? item.brand?.manufacturerName || item.brand?.name || ""
           : item.brand || item.manufacturerName || item.model?.manufacturer?.name || "",
@@ -30,9 +31,21 @@ export async function fetchCustomerVehiclesApi(customerId?: string): Promise<Veh
         vin: item.vin || item.chassisNumber || "",
         motorNo: item.motorNo || "",
         color: item.color || "",
+        odometerKm: item.odometerKm !== undefined && item.odometerKm !== null
+          ? Number(item.odometerKm)
+          : (item.odometer_km !== undefined && item.odometer_km !== null
+            ? Number(item.odometer_km)
+            : (item.odometer !== undefined && item.odometer !== null
+              ? Number(item.odometer)
+              : (item.currentOdometer !== undefined && item.currentOdometer !== null
+                ? Number(item.currentOdometer)
+                : 0))),
         batteryHealthPct: item.batteryHealthPct || item.batterySohInPct || 0,
         currentRangeKm: item.currentRangeKm || item.rangeKm || 0,
         warrantyStatus: item.warrantyStatus || (item.warrantyEnd ? "Active Warranty" : "Standard"),
+        warrantyStart: item.warrantyStart || item.warranty_start || "",
+        warrantyEnd: item.warrantyEnd || item.warranty_end || "",
+        batteryWarrantyEnd: item.batteryWarrantyEnd || item.battery_warranty_end || "",
         motorPower: item.motorNo ? `Motor: ${item.motorNo}` : "",
         purchaseDate: item.purchaseDate || "",
         lastServicedDate: item.lastServicedDate || "",
@@ -44,6 +57,17 @@ export async function fetchCustomerVehiclesApi(customerId?: string): Promise<Veh
   } catch (err: any) {
     const errorMsg = err.response?.data?.message || err.message || "Failed to fetch customer vehicles from database";
     console.error("❌ Fetch Customer Vehicles API Error:", errorMsg);
+    throw new Error(errorMsg);
+  }
+}
+
+export async function deleteCustomerVehicleApi(vehicleId: string): Promise<boolean> {
+  try {
+    await api.delete(`/vehicles/${vehicleId}`);
+    return true;
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message || err.message || "Failed to remove vehicle from database";
+    console.error("❌ DELETE /api/vehicles Error:", errorMsg);
     throw new Error(errorMsg);
   }
 }
@@ -68,7 +92,7 @@ export async function addCustomerVehicleApi(payload: AddVehiclePayload): Promise
   try {
     let resolvedCustomerId = payload.customerId;
     if (!resolvedCustomerId) {
-      const userRes = await api.get("/auth/me");
+      const userRes = await getAuthMeCached();
       const userData = userRes.data?.data || userRes.data;
       resolvedCustomerId = userData?.customerId;
     }
@@ -115,6 +139,75 @@ export async function addCustomerVehicleApi(payload: AddVehiclePayload): Promise
         : err.response.data.errors
       : err.response?.data?.message || err.message || "Failed to create vehicle in database via POST /api/vehicles";
     console.error("❌ POST /api/vehicles Error:", errorMsg);
+    throw new Error(errorMsg);
+  }
+}
+
+function toIsoDateStr(dateStr?: string): string | undefined {
+  if (!dateStr || !dateStr.trim()) return undefined;
+  const trimmed = dateStr.trim();
+  
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/.test(trimmed)) {
+    const parts = trimmed.split(/[-/]/);
+    const day = parts[0].padStart(2, '0');
+    const month = parts[1].padStart(2, '0');
+    const year = parts[2];
+    return `${year}-${month}-${day}`;
+  }
+
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+
+  return undefined;
+}
+
+export async function updateCustomerVehicleApi(vehicleId: string, payload: Partial<AddVehiclePayload>): Promise<boolean> {
+  try {
+    const patchBody: Record<string, any> = {};
+    if (payload.modelId) patchBody.modelId = payload.modelId;
+    if (payload.registrationNumber !== undefined) patchBody.registrationNo = payload.registrationNumber;
+    if (payload.vin !== undefined) patchBody.vin = payload.vin;
+    if (payload.motorNo !== undefined) patchBody.motorNo = payload.motorNo;
+    if (payload.color !== undefined) patchBody.color = payload.color;
+    
+    if (payload.purchaseDate) {
+      const isoP = toIsoDateStr(payload.purchaseDate);
+      if (isoP) patchBody.purchaseDate = isoP;
+    }
+
+    if (payload.odometerKm !== undefined) patchBody.odometerKm = Number(payload.odometerKm);
+    if (payload.status !== undefined) patchBody.status = payload.status;
+    
+    if (payload.warrantyStart) {
+      const isoWS = toIsoDateStr(payload.warrantyStart);
+      if (isoWS) patchBody.warrantyStart = isoWS;
+    }
+
+    if (payload.warrantyEnd) {
+      const isoWE = toIsoDateStr(payload.warrantyEnd);
+      if (isoWE) patchBody.warrantyEnd = isoWE;
+    }
+
+    if (payload.batteryWarrantyEnd) {
+      const isoBWE = toIsoDateStr(payload.batteryWarrantyEnd);
+      if (isoBWE) patchBody.batteryWarrantyEnd = isoBWE;
+    }
+
+    await api.patch(`/vehicles/${vehicleId}`, patchBody);
+    return true;
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.errors
+      ? Array.isArray(err.response.data.errors)
+        ? err.response.data.errors.join(", ")
+        : err.response.data.errors
+      : err.response?.data?.message || err.message || "Failed to update vehicle in database";
+    console.error("❌ PATCH /api/vehicles Error:", errorMsg);
     throw new Error(errorMsg);
   }
 }

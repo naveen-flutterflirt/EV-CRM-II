@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { UserProfile } from '../types';
 
 interface HeaderGreetingProps {
@@ -13,20 +14,33 @@ export const HeaderGreeting: React.FC<HeaderGreetingProps> = ({
   onNotificationPress,
   onProfilePress,
 }) => {
-  const userName = user?.name ? (user.name.startsWith("Hi ") ? user.name : `Hi ${user.name}`) : "Hi Rohan";
-  const location = user?.location || "Indore";
+  const rawName = user?.name || 'Customer';
+  const cleanName = rawName.replace(/^Hi,?\s*/i, '').trim();
+  const userName = cleanName ? `Hi, ${cleanName}` : 'Hi, Customer';
+  const location = user?.location || 'Indore';
 
   return (
     <View style={styles.container}>
-      {/* Top Bar: Home Title + Top Right Green Profile Badge */}
+      {/* Top Bar: Home Title + Top Right Actions (Bell + Profile) */}
       <View style={styles.topBar}>
         <Text style={styles.screenTitle}>Home</Text>
-        <TouchableOpacity style={styles.topProfileBadge} onPress={onProfilePress} activeOpacity={0.8}>
-          <Text style={styles.topProfileBadgeIcon}>👤</Text>
-        </TouchableOpacity>
+
+        <View style={styles.topActionsGroup}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={onNotificationPress}
+            activeOpacity={0.75}
+          >
+            <Feather name="bell" size={18} color="#0f172a" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.topProfileBadge} onPress={onProfilePress} activeOpacity={0.8}>
+            <Text style={styles.topProfileBadgeIcon}>👤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Greeting Row: User Avatar + Name/Location + Bell Button */}
+      {/* Greeting Row: User Avatar + Name/Location */}
       <View style={styles.greetingRow}>
         <View style={styles.userInfoGroup}>
           <View style={styles.avatarCircle}>
@@ -44,12 +58,6 @@ export const HeaderGreeting: React.FC<HeaderGreetingProps> = ({
             </View>
           </View>
         </View>
-
-        {/* Bell Notification Button */}
-        <TouchableOpacity style={styles.bellButton} onPress={onNotificationPress} activeOpacity={0.8}>
-          <Text style={styles.bellIcon}>🔔</Text>
-          <View style={styles.activeDot} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -57,26 +65,52 @@ export const HeaderGreeting: React.FC<HeaderGreetingProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 16,
   },
   screenTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#18181b',
+    fontWeight: '800',
+    color: '#0f172a',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  topActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   topProfileBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#3f6212',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   topProfileBadgeIcon: {
     fontSize: 14,
@@ -93,15 +127,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#e4e4e7',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#f1f5f9',
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d4d4d8',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
   },
   avatarImage: {
     width: '100%',
@@ -114,9 +148,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   userNameText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#18181b',
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#0f172a',
+    fontFamily: 'PlusJakartaSans-Bold',
   },
   locationRow: {
     flexDirection: 'row',
@@ -125,39 +160,12 @@ const styles = StyleSheet.create({
   },
   locationPinIcon: {
     fontSize: 11,
-    marginRight: 2,
+    marginRight: 3,
   },
   locationText: {
     fontSize: 13,
-    color: '#71717a',
-    fontWeight: '500',
-  },
-  bellButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e4e4e7',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  bellIcon: {
-    fontSize: 16,
-  },
-  activeDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#ef4444',
+    color: '#475569',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
 });

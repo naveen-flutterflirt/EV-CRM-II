@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
 interface NoActiveJobCardCardProps {
@@ -9,6 +9,27 @@ interface NoActiveJobCardCardProps {
 export const NoActiveJobCardCard: React.FC<NoActiveJobCardCardProps> = ({
   onBookServicePress,
 }) => {
+  const shimmerAnim = useRef(new Animated.Value(-60)).current;
+
+  useEffect(() => {
+    const loopAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 220,
+          duration: 2200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: -60,
+          duration: 0,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    loopAnim.start();
+    return () => loopAnim.stop();
+  }, [shimmerAnim]);
+
   return (
     <View style={styles.cardContainer}>
       <View style={styles.topRow}>
@@ -30,9 +51,19 @@ export const NoActiveJobCardCard: React.FC<NoActiveJobCardCardProps> = ({
         onPress={onBookServicePress}
         activeOpacity={0.85}
       >
-        <Feather name="calendar" size={16} color="#1a2b0c" style={{ marginRight: 6 }} />
+        {/* Animated Shining Sheen Effect */}
+        <Animated.View
+          style={[
+            styles.shimmerSheen,
+            {
+              transform: [{ translateX: shimmerAnim }, { rotate: '25deg' }],
+            },
+          ]}
+        />
+        
+        <Feather name="calendar" size={14} color="#1a2b0c" style={{ marginRight: 6 }} />
         <Text style={styles.bookBtnText}>Book a Service</Text>
-        <Feather name="arrow-right" size={16} color="#1a2b0c" style={{ marginLeft: 4 }} />
+        <Feather name="arrow-right" size={14} color="#1a2b0c" style={{ marginLeft: 4 }} />
       </TouchableOpacity>
     </View>
   );
@@ -43,20 +74,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 24,
     padding: 20,
-    marginBottom: 16,
+    marginBottom: 20,
     borderColor: '#edf6d6',
-    borderWidth: 1,
-    shadowColor: '#64748b',
+    borderWidth: 1.5,
+    shadowColor: '#0f172a',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   iconCircle: {
     width: 44,
@@ -68,15 +99,15 @@ const styles = StyleSheet.create({
   },
   badge: {
     backgroundColor: '#dcfce7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
     color: '#4d7c0f',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     fontFamily: 'PlusJakartaSans-Bold',
   },
   headingTitle: {
@@ -87,19 +118,38 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Bold',
   },
   subText: {
-    fontSize: 12,
-    color: '#64748b',
-    lineHeight: 18,
-    marginBottom: 16,
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 19,
+    marginBottom: 18,
     fontFamily: 'PlusJakartaSans-Regular',
   },
   bookBtn: {
     backgroundColor: '#a2e52c',
-    borderRadius: 20,
-    height: 46,
+    borderColor: '#84cc16',
+    borderWidth: 1,
+    borderRadius: 16,
+    height: 40,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    alignSelf: 'flex-start',
+    position: 'relative',
+    overflow: 'hidden',
+    shadowColor: '#a2e52c',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  shimmerSheen: {
+    position: 'absolute',
+    top: -15,
+    left: -20,
+    width: 25,
+    height: 70,
+    backgroundColor: 'rgba(255, 255, 255, 0.65)',
   },
   bookBtnText: {
     fontSize: 13,

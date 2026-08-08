@@ -12,19 +12,26 @@ import { Feather } from '@expo/vector-icons';
 import { SupportTicketItem } from '../types';
 
 interface SupportMainScreenProps {
-  tickets: SupportTicketItem[];
+  tickets?: SupportTicketItem[];
   onOpenHelpCenter: () => void;
   onOpenContactUs: () => void;
   onBack: () => void;
 }
 
 export const SupportMainScreen: React.FC<SupportMainScreenProps> = ({
-  tickets,
+  tickets = [],
   onOpenHelpCenter,
   onOpenContactUs,
   onBack,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredTickets = (tickets || []).filter((t) => {
+    if (!searchQuery.trim()) return true;
+    return t.title.toLowerCase().includes(searchQuery.toLowerCase()) || t.summary.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const hasTickets = filteredTickets.length > 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -87,41 +94,52 @@ export const SupportMainScreen: React.FC<SupportMainScreenProps> = ({
         {/* Recent Inquiries Header */}
         <View style={styles.inquiriesHeaderRow}>
           <Text style={styles.inquiriesTitle}>Recent inquiries</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>VIEW ALL</Text>
-          </TouchableOpacity>
+          {hasTickets && (
+            <TouchableOpacity>
+              <Text style={styles.viewAllText}>VIEW ALL</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Recent Inquiries List */}
-        <View style={styles.inquiriesList}>
-          {tickets.map((t) => (
-            <View key={t.id} style={styles.inquiryCard}>
-              <View style={styles.inquiryTopRow}>
-                <View style={styles.inquiryLeft}>
-                  <View style={styles.avatarCircle}>
-                    <Feather name="user" size={18} color="#4d7c0f" />
+        {/* Recent Inquiries List or Empty State */}
+        {hasTickets ? (
+          <View style={styles.inquiriesList}>
+            {filteredTickets.map((t) => (
+              <View key={t.id} style={styles.inquiryCard}>
+                <View style={styles.inquiryTopRow}>
+                  <View style={styles.inquiryLeft}>
+                    <View style={styles.avatarCircle}>
+                      <Feather name="user" size={18} color="#4d7c0f" />
+                    </View>
+                    <View>
+                      <Text style={styles.inquiryTitle}>{t.title}</Text>
+                      <Text style={styles.inquirySummary}>{t.summary}</Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.inquiryTitle}>{t.title}</Text>
-                    <Text style={styles.inquirySummary}>{t.summary}</Text>
-                  </View>
+                  <Text style={styles.timeAgoText}>{t.timeAgo}</Text>
                 </View>
-                <Text style={styles.timeAgoText}>{t.timeAgo}</Text>
-              </View>
 
-              {/* Status Badge */}
-              <View style={styles.statusRow}>
-                <View
-                  style={[
-                    styles.statusDot,
-                    t.status === 'IN PROGRESS' ? styles.dotProgress : styles.dotResolved,
-                  ]}
-                />
-                <Text style={styles.statusText}>{t.status}</Text>
+                {/* Status Badge */}
+                <View style={styles.statusRow}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      t.status === 'IN PROGRESS' ? styles.dotProgress : styles.dotResolved,
+                    ]}
+                  />
+                  <Text style={styles.statusText}>{t.status}</Text>
+                </View>
               </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyCardContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Feather name="help-circle" size={24} color="#94a3b8" />
             </View>
-          ))}
-        </View>
+            <Text style={styles.emptyText}>You don't have any recent inquiries</Text>
+          </View>
+        )}
 
         {/* Bottom Community Forum Card */}
         <View style={styles.communityCard}>
@@ -334,6 +352,31 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.5,
+  },
+  emptyCardContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: '#f1f5f9',
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  emptyIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
   communityCard: {
     backgroundColor: '#eceaf4',

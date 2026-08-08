@@ -19,18 +19,51 @@ interface VehicleDetailsScreenProps {
   vehicle?: Vehicle | null;
   onBack: () => void;
   onAddVehicle?: (payload: AddVehiclePayload) => Promise<void>;
+  onUpdateVehicle?: (vehicleId: string, payload: Partial<AddVehiclePayload>) => Promise<void>;
   onRemoveVehicle?: () => void;
+}
+
+function calculateWarrantyPeriod(startDateStr?: string, endDateStr?: string): string {
+  if (!endDateStr || !endDateStr.trim()) return '-';
+  const startStr = (startDateStr && startDateStr.trim()) ? startDateStr.trim() : null;
+  
+  if (!startStr) {
+    return `Until ${endDateStr}`;
+  }
+
+  const start = new Date(startStr);
+  const end = new Date(endDateStr.trim());
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return `${startStr} to ${endDateStr}`;
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  if (diffMs <= 0) return 'Expired';
+
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const diffMonths = Math.round(diffDays / 30.4375);
+  const diffYears = Math.round(diffDays / 365.25);
+
+  if (diffYears >= 1) {
+    return `${diffYears} ${diffYears === 1 ? 'Year' : 'Years'}`;
+  } else if (diffMonths >= 1) {
+    return `${diffMonths} ${diffMonths === 1 ? 'Month' : 'Months'}`;
+  } else {
+    return `${diffDays} ${diffDays === 1 ? 'Day' : 'Days'}`;
+  }
 }
 
 export const VehicleDetailsScreen: React.FC<VehicleDetailsScreenProps> = ({
   vehicle,
   onBack,
   onAddVehicle,
+  onUpdateVehicle,
   onRemoveVehicle,
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Dynamic values extracted directly from vehicle prop without hardcoded fallbacks
+  // Dynamic values extracted directly from vehicle prop
   const brand = vehicle?.brand || '';
   const modelName = vehicle?.modelName || (typeof vehicle?.model === 'string' ? vehicle.model : (vehicle?.model as any)?.modelName) || '';
   const variant = (vehicle as any)?.variant || '';
@@ -39,7 +72,8 @@ export const VehicleDetailsScreen: React.FC<VehicleDetailsScreenProps> = ({
   const motorNo = vehicle?.motorNo || '';
   const color = vehicle?.color || '';
   const purchaseDate = vehicle?.purchaseDate || '';
-  const odometerKm = vehicle?.odometerKm !== undefined && vehicle?.odometerKm !== null ? `${vehicle.odometerKm} km` : '';
+  const rawOdo = vehicle?.odometerKm ?? (vehicle as any)?.odometer_km ?? (vehicle as any)?.odometer ?? (vehicle as any)?.currentOdometer;
+  const odometerKm = rawOdo !== undefined && rawOdo !== null && rawOdo !== '' ? `${rawOdo} km` : '';
   const warrantyStart = vehicle?.warrantyStart || (vehicle as any)?.warrantyStart || '';
   const warrantyEnd = vehicle?.warrantyEnd || (vehicle as any)?.warrantyEnd || '';
   const batteryWarrantyEnd = vehicle?.batteryWarrantyEnd || (vehicle as any)?.batteryWarrantyEnd || '';
@@ -53,17 +87,17 @@ export const VehicleDetailsScreen: React.FC<VehicleDetailsScreenProps> = ({
   const batteryPct = vehicle?.batteryHealthPct !== undefined && vehicle?.batteryHealthPct !== null ? `${vehicle.batteryHealthPct}%` : '';
   const rangeKm = vehicle?.currentRangeKm !== undefined && vehicle?.currentRangeKm !== null ? `${vehicle.currentRangeKm} km` : '';
 
-interface CategoryRow {
-  label: string;
-  value: string;
-  isStatus?: boolean;
-}
+  interface CategoryRow {
+    label: string;
+    value: string;
+    isStatus?: boolean;
+  }
 
-interface CategoryGroup {
-  title: string;
-  icon: string;
-  rows: CategoryRow[];
-}
+  interface CategoryGroup {
+    title: string;
+    icon: string;
+    rows: CategoryRow[];
+  }
 
   // Categorized Specification Tables
   const categories: CategoryGroup[] = [
@@ -71,42 +105,42 @@ interface CategoryGroup {
       title: 'IDENTIFICATION & REGISTRATION',
       icon: 'shield',
       rows: [
-        { label: 'Registration Number', value: regNo || 'N/A' },
-        { label: 'VIN / Chassis Number', value: vin || 'N/A' },
-        { label: 'Vehicle Status', value: status ? status.toUpperCase() : 'N/A', isStatus: true },
+        { label: 'Registration Number', value: regNo || '-' },
+        { label: 'VIN / Chassis Number', value: vin || '-' },
+        { label: 'Vehicle Status', value: status ? status.toUpperCase() : '-', isStatus: true },
       ],
     },
     {
       title: 'MODEL & SPECIFICATIONS',
       icon: 'info',
       rows: [
-        { label: 'Brand', value: brand || 'N/A' },
-        { label: 'Model Name', value: modelName || 'N/A' },
-        { label: 'Variant', value: variant || 'N/A' },
-        { label: 'Motor Number', value: motorNo || 'N/A' },
-        { label: 'Exterior Color', value: color || 'N/A' },
-        { label: 'Swappable Battery', value: isBatterySwappable || 'N/A' },
+        { label: 'Brand', value: brand || '-' },
+        { label: 'Model Name', value: modelName || '-' },
+        { label: 'Variant', value: variant || '-' },
+        { label: 'Motor Number', value: motorNo || '-' },
+        { label: 'Exterior Color', value: color || '-' },
+        { label: 'Swappable Battery', value: isBatterySwappable || '-' },
       ],
     },
     {
       title: 'USAGE & PERFORMANCE',
       icon: 'activity',
       rows: [
-        { label: 'Odometer Reading', value: odometerKm || 'N/A' },
-        { label: 'Battery Health', value: batteryPct || 'N/A' },
-        { label: 'Estimated Range', value: rangeKm || 'N/A' },
+        { label: 'Odometer Reading', value: odometerKm || '-' },
+        { label: 'Battery Health', value: batteryPct || '-' },
+        { label: 'Estimated Range', value: rangeKm || '-' },
       ],
     },
     {
       title: 'PURCHASE & WARRANTY',
       icon: 'award',
       rows: [
-        { label: 'Purchase Date', value: purchaseDate || 'N/A' },
+        { label: 'Purchase Date', value: purchaseDate || '-' },
         {
           label: 'Warranty Period',
-          value: (warrantyStart || warrantyEnd) ? `${warrantyStart || 'N/A'} to ${warrantyEnd || 'N/A'}` : 'N/A',
+          value: calculateWarrantyPeriod(warrantyStart || purchaseDate, warrantyEnd),
         },
-        { label: 'Battery Warranty End', value: batteryWarrantyEnd || 'N/A' },
+        { label: 'Battery Warranty End', value: batteryWarrantyEnd || '-' },
       ],
     },
   ];
@@ -173,7 +207,7 @@ interface CategoryGroup {
           </View>
         ))}
 
-        {/* Bottom Actions Row: Remove Vehicle Button */}
+        {/* Bottom Actions Row: Remove Vehicle Button & Update Vehicle Button */}
         <View style={styles.actionButtonsRow}>
           <TouchableOpacity
             style={styles.removeVehicleBtn}
@@ -183,17 +217,27 @@ interface CategoryGroup {
             <Feather name="trash-2" size={18} color="#dc2626" />
             <Text style={styles.removeVehicleText}>Remove Vehicle</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.addVehicleBtn}
+            onPress={() => setShowAddModal(true)}
+            activeOpacity={0.85}
+          >
+            <Feather name="edit-3" size={18} color="#1a2b0c" />
+            <Text style={styles.addVehicleText}>Update Vehicle</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {/* Add Vehicle Modal */}
-      {onAddVehicle && (
-        <AddVehicleModal
-          visible={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onAddVehicle={onAddVehicle}
-        />
-      )}
+      {/* Add / Update Vehicle Modal */}
+      <AddVehicleModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAddVehicle={onAddVehicle || (async () => {})}
+        initialData={vehicle}
+        isUpdate={true}
+        onUpdateVehicle={onUpdateVehicle}
+      />
     </SafeAreaView>
   );
 };
@@ -225,6 +269,29 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#0f172a',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  updateHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#a2e52c',
+    borderColor: '#84cc16',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    gap: 4,
+    marginLeft: 10,
+    shadowColor: '#a2e52c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  updateHeaderBtnText: {
+    color: '#2e5b02',
+    fontSize: 12,
+    fontWeight: '800',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   container: {

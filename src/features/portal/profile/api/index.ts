@@ -1,4 +1,6 @@
 import api from "../../../../config/axios";
+import { getAuthMeCached, invalidateAuthMeCache } from "../../../../common/services/authCache";
+import { fetchWithTtlCache, invalidateCacheKey } from "../../../../common/services/apiCache";
 import {
   UserProfileData,
   EditProfilePayload,
@@ -8,117 +10,146 @@ import {
   FaqItem,
 } from "../types";
 
-// Fetch user profile
-export async function fetchUserProfileApi(): Promise<UserProfileData> {
-  try {
-    const res = await api.get("/auth/me");
-    const user = res.data?.data || res.data;
-    if (user) {
-      return {
-        id: user.id || "usr_101",
-        name: user.fullName || user.name || "Rohan Mehta",
-        phone: user.phone || user.phoneNumber || "+91 98765 43210",
-        email: user.email || "rohan.mehta@gmail.com",
-        location: user.city || user.location || "Indore",
-        dob: user.dob || "12/04/1995",
-        gender: user.gender || "Male",
-        defaultAddress: user.address || "402, Sapphire Heights, AB Road, Indore, MP 452001",
-        avatarUrl: user.avatarUrl,
-      };
-    }
-  } catch (err) {
-    console.warn("⚠️ User Profile API Fallback:", err);
-  }
+// Fetch user & customer profile from backend GET /auth/me and GET /customers/:id
+export async function fetchUserProfileApi(forceRefresh = false): Promise<UserProfileData> {
+  return fetchWithTtlCache("user_profile", async () => {
+    try {
+      const res = await getAuthMeCached(forceRefresh);
+      const user = res.data?.data || res.data;
+      if (user) {
+        let customerData: any = {};
+        if (user.customerId) {
+          try {
+            const custRes = await api.get(`/customers/${user.customerId}`);
+            customerData = custRes.data?.data || custRes.data || {};
+          } catch (_e) {
+            // ignore
+          }
+        }
 
-  return {
-    id: "usr_101",
-    name: "Rohan Mehta",
-    phone: "+91 98765 43210",
-    email: "rohan.mehta@gmail.com",
-    location: "Indore",
-    dob: "12/04/1995",
-    gender: "Male",
-    defaultAddress: "402, Sapphire Heights, AB Road, Indore, MP 452001",
-  };
+        const rawFullName = user.fullName || user.username || "User";
+        const nameParts = rawFullName.trim().split(" ");
+        const firstName = customerData.firstName || nameParts[0] || "User";
+        const lastName = customerData.lastName || nameParts.slice(1).join(" ") || "";
+        const fullName = `${firstName} ${lastName}`.trim();
+        const phone = customerData.phone || user.phone || "";
+        const email = customerData.email || user.email || "";
+        const rawGender = customerData.gender || user.gender || "Male";
+        const gender = rawGender ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase() : "Male";
+        const addressLine1 = customerData.addressLine1 || "";
+        const city = customerData.city || "";
+        const pincode = customerData.pincode || "";
+
+        return {
+          id: user.id || user.customerId,
+          firstName,
+          lastName,
+          name: fullName,
+          phone,
+          email,
+          gender,
+          addressLine1,
+          city,
+          pincode,
+          location: city || "-",
+          defaultAddress: addressLine1 || "--",
+          avatarUrl: user.avatarUrl,
+        };
+      }
+    } catch (err) {
+      console.warn("⚠️ User Profile API Fallback:", err);
+    }
+
+    return {
+      id: "",
+      firstName: "",
+      lastName: "",
+      name: "",
+      phone: "",
+      email: "",
+      gender: "",
+      addressLine1: "",
+      city: "",
+      pincode: "",
+      location: "",
+      defaultAddress: "",
+    };
+  }, 180000, forceRefresh);
 }
 
-// Update user profile
+// Update customer profile via PATCH /api/customers/:id
 export async function updateUserProfileApi(payload: EditProfilePayload): Promise<boolean> {
   try {
-    const res = await api.patch("/auth/setup-profile", payload);
-    return res.data?.success ?? true;
-  } catch (err) {
-    console.warn("⚠️ Update Profile API Error:", err);
+    const userRes = await getAuthMeCached();
+    const user = userRes.data?.data || userRes.data;
+    const customerId = user?.customerId;
+
+    if (!customerId) {
+      throw new Error("Customer ID not found for current user account.");
+    }
+
+    const updateBody: Record<string, any> = {};
+    if (payload.firstName) updateBody.firstName = payload.firstName;
+    if (payload.lastName !== undefined) updateBody.lastName = payload.lastName;
+    if (payload.phone) updateBody.phone = payload.phone;
+    if (payload.email !== undefined) updateBody.email = payload.email;
+    if (payload.gender !== undefined) {
+      updateBody.gender = payload.gender ? payload.gender.toLowerCase() : null;
+    }
+    if (payload.addressLine1 !== undefined) updateBody.addressLine1 = payload.addressLine1;
+    if (payload.city !== undefined) updateBody.city = payload.city;
+    if (payload.pincode !== undefined) updateBody.pincode = payload.pincode;
+
+    await api.patch(`/customers/${customerId}`, updateBody);
+    invalidateAuthMeCache();
+    invalidateCacheKey("user_profile");
+    invalidateCacheKey("customer_dashboard");
+
     return true;
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message || (Array.isArray(err.response?.data?.errors) ? err.response.data.errors.join(', ') : null) || err.message || "Failed to update customer profile";
+    console.error("❌ Update Profile API Error:", errorMsg);
+    throw new Error(errorMsg);
   }
 }
 
-// Fetch service history timeline
+// Fetch service history timeline from backend (Returns [] when no job cards exist)
 export async function fetchServiceHistoryApi(): Promise<ServiceHistoryRecord[]> {
   try {
-    const res = await api.get("/job-cards");
+    const userRes = await getAuthMeCached();
+    const user = userRes.data?.data || userRes.data;
+    const customerId = user?.customerId;
+
+    if (!customerId) {
+      return [];
+    }
+
+    const res = await api.get(`/job-cards?customerId=${customerId}`);
     const data = res.data?.data || res.data;
     if (Array.isArray(data) && data.length > 0) {
       return data.map((item: any, idx: number) => {
-        const dateObj = item.createdAt ? new Date(item.createdAt) : new Date();
+        const rawDate = item.openedAt || item.createdAt || item.completedAt;
+        const dateObj = rawDate ? new Date(rawDate) : new Date();
         const year = dateObj.getFullYear().toString();
         const monthDay = dateObj.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
         return {
-          id: item.id || `srv_${idx}`,
+          id: item.id || item.jobCardId || `srv_${idx}`,
           dateStr: dateObj.toLocaleDateString(),
-          year: year || "2024",
-          monthDay: monthDay || "OCT 12",
-          title: item.serviceType || item.title || (idx === 0 ? "Full Annual Service" : "Brake Pad Replacement"),
-          kilometers: item.kilometerReading || (42500 - idx * 4380),
-          vehicleModel: item.vehicleModel || "MODEL 3",
+          year: year,
+          monthDay: monthDay,
+          title: item.serviceName || item.serviceType || item.title || "Vehicle Service",
+          kilometers: item.kilometerReading || item.odometerKm || item.currentOdometer || 0,
+          vehicleModel: item.vehicleModel || item.vehicle?.model?.modelName || item.vehicle?.modelName || "EV",
         };
       });
     }
   } catch (err) {
-    console.warn("⚠️ Service History API Fallback:", err);
+    console.warn("⚠️ Service History API Error:", err);
   }
 
-  return [
-    {
-      id: "sh_2024_1",
-      year: "2024",
-      monthDay: "OCT 12",
-      dateStr: "12 Oct 2024",
-      title: "Full Annual Service",
-      kilometers: 42500,
-      vehicleModel: "MODEL 3",
-    },
-    {
-      id: "sh_2024_2",
-      year: "2024",
-      monthDay: "JUN 08",
-      dateStr: "08 Jun 2024",
-      title: "Brake Pad Replacement",
-      kilometers: 38120,
-      vehicleModel: "MODEL 3",
-    },
-    {
-      id: "sh_2023_1",
-      year: "2023",
-      monthDay: "DEC 20",
-      dateStr: "20 Dec 2023",
-      title: "Software Calibration",
-      kilometers: 31005,
-      vehicleModel: "MODEL 3",
-    },
-    {
-      id: "sh_2023_2",
-      year: "2023",
-      monthDay: "AUG 15",
-      dateStr: "15 Aug 2023",
-      title: "Tire Rotation & Balance",
-      kilometers: 24400,
-      vehicleModel: "MODEL 3",
-    },
-  ];
+  return [];
 }
 
-// Fetch single service detail record (Matching Image 1)
 export async function fetchServiceDetailApi(serviceId?: string): Promise<ServiceDetailData> {
   try {
     if (serviceId) {
@@ -126,71 +157,45 @@ export async function fetchServiceDetailApi(serviceId?: string): Promise<Service
       const data = res.data?.data || res.data;
       if (data) {
         return {
-          id: data.id || serviceId,
-          serviceType: data.serviceType || "Major Interval",
-          serviceDate: data.createdAt ? new Date(data.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Oct 24, 2023",
-          odometerKm: data.odometerKm || data.kilometerReading || 42502,
-          technicianName: data.technicianName || "Marcus Sterling",
-          technicianRating: data.technicianRating || 4.9,
-          laborItems: Array.isArray(data.services) ? data.services : [
-            { id: "lab_1", title: "Standard Safety Check", subtitle: "62-point comprehensive inspection", price: 145.00 },
-            { id: "lab_2", title: "Engine Tuning", subtitle: "Electronic calibration & timing", price: 88.50 },
-          ],
-          partsReplaced: Array.isArray(data.parts) ? data.parts : [
-            { id: "prt_1", partName: "Synthetic Oil Filter (Premium)", partNumber: "Part #SF-90210", price: 42.00 },
-            { id: "prt_2", partName: "HEPA Cabin Air Filter", partNumber: "Part #CF-4452", price: 38.90 },
-          ],
-          technicianNotes: data.notes || "Brake pad wear detected at 15%. Recommended replacement during the next minor service interval. All other systems operating at peak efficiency.",
-          totalAmount: data.totalAmount || 314.40,
+          id: data.id || data.jobCardId || serviceId,
+          serviceType: data.serviceType || data.jobType || data.serviceName || "Vehicle Service",
+          serviceDate: data.createdAt || data.openedAt || data.completedAt
+            ? new Date(data.createdAt || data.openedAt || data.completedAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })
+            : undefined,
+          odometerKm: data.odometerKm || data.kilometerReading || undefined,
+          technicianName: data.technicianName || data.technician?.fullName || data.technician?.name || undefined,
+          technicianRating: data.technicianRating || data.technician?.rating || undefined,
+          laborItems: Array.isArray(data.services) ? data.services : (Array.isArray(data.laborItems) ? data.laborItems : []),
+          partsReplaced: Array.isArray(data.parts) ? data.parts : (Array.isArray(data.partsReplaced) ? data.partsReplaced : []),
+          technicianNotes: data.notes || data.technicianNotes || data.customerNotes || undefined,
+          totalAmount: data.totalAmount !== undefined && data.totalAmount !== null && Number(data.totalAmount) > 0 ? Number(data.totalAmount) : undefined,
         };
       }
     }
   } catch (err) {
-    console.warn("⚠️ Service Detail API Fallback:", err);
+    console.warn("⚠️ Service Detail API Warning:", err);
   }
 
-  // Exact mockup data matching Image 1
   return {
-    id: serviceId || "sh_2024_1",
-    serviceType: "Major Interval",
-    serviceDate: "Oct 24, 2023",
-    odometerKm: 42502,
-    technicianName: "Marcus Sterling",
-    technicianRating: 4.9,
-    laborItems: [
-      { id: "lab_1", title: "Standard Safety Check", subtitle: "62-point comprehensive inspection", price: 145.00 },
-      { id: "lab_2", title: "Engine Tuning", subtitle: "Electronic calibration & timing", price: 88.50 },
-    ],
-    partsReplaced: [
-      { id: "prt_1", partName: "Synthetic Oil Filter (Premium)", partNumber: "Part #SF-90210", price: 42.00 },
-      { id: "prt_2", partName: "HEPA Cabin Air Filter", partNumber: "Part #CF-4452", price: 38.90 },
-    ],
-    technicianNotes: "Brake pad wear detected at 15%. Recommended replacement during the next minor service interval. All other systems operating at peak efficiency.",
-    totalAmount: 314.40,
+    id: serviceId || "sh_empty",
+    serviceType: "Vehicle Service",
+    serviceDate: undefined,
+    odometerKm: undefined,
+    technicianName: undefined,
+    technicianRating: undefined,
+    laborItems: [],
+    partsReplaced: [],
+    technicianNotes: undefined,
+    totalAmount: undefined,
   };
 }
 
-// Support Tickets List (Image 2 Left)
+// Support Tickets List (No /api/support/tickets endpoint exists in backend, return empty array directly)
 export async function fetchSupportTicketsApi(): Promise<SupportTicketItem[]> {
-  return [
-    {
-      id: "inq_1",
-      title: "Verification Issue",
-      timeAgo: "2h ago",
-      summary: "Our team is reviewing your documents...",
-      status: "IN PROGRESS",
-    },
-    {
-      id: "inq_2",
-      title: "Refund Status",
-      timeAgo: "Yesterday",
-      summary: "The transfer was completed successfully.",
-      status: "RESOLVED",
-    },
-  ];
+  return [];
 }
 
-// Help Center FAQs List (Image 2 Middle)
+// Help Center FAQs List
 export async function fetchFaqsApi(): Promise<FaqItem[]> {
   return [
     {
@@ -229,11 +234,11 @@ export async function fetchFaqsApi(): Promise<FaqItem[]> {
 // Change Password / Security API
 export async function changePasswordApi(oldPassword: string, newPassword: string): Promise<boolean> {
   try {
-    const res = await api.post("/auth/reset-password", { oldPassword, password: newPassword });
+    const res = await api.post("/auth/change-password", { oldPassword, newPassword });
     return res.data?.success ?? true;
-  } catch (err) {
-    console.warn("⚠️ Change Password API Fallback:", err);
-    return true;
+  } catch (err: any) {
+    const errorMsg = err.response?.data?.message || err.message || "Failed to update password";
+    console.warn("⚠️ Change Password API Error:", errorMsg);
+    throw new Error(errorMsg);
   }
 }
-

@@ -20,9 +20,7 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onBack }) => {
   const [expandedOption, setExpandedOption] = useState<'whatsapp' | 'call' | 'email' | null>('whatsapp');
 
   const handleWhatsappPress = () => {
-    const msg = 'Opening WhatsApp Support Chat...';
-    if (Platform.OS === 'web') window.alert(msg);
-    else Alert.alert('WhatsApp Chat', msg);
+    Linking.openURL('https://wa.me/919876543210');
   };
 
   const handleCallPress = () => {
@@ -113,22 +111,6 @@ export const ContactScreen: React.FC<ContactScreenProps> = ({ onBack }) => {
               <Feather name="external-link" size={16} color="#94a3b8" />
             </View>
           </TouchableOpacity>
-        </View>
-
-        {/* SUPPORT HOURS Card */}
-        <View style={styles.supportHoursCard}>
-          <View style={styles.greenAccentLine} />
-          <View style={styles.hoursContent}>
-            <View style={styles.hoursTitleRow}>
-              <Feather name="clock" size={14} color="#4d7c0f" style={{ marginRight: 6 }} />
-              <Text style={styles.hoursTitle}>SUPPORT HOURS</Text>
-            </View>
-            <Text style={styles.hoursText}>Monday - Friday: 08:00 - 20:00</Text>
-            <Text style={styles.hoursText}>Weekend: 10:00 - 16:00</Text>
-            <Text style={styles.currentTimeText}>
-              Current time: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (Local)
-            </Text>
-          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

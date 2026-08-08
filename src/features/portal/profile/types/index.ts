@@ -1,23 +1,32 @@
 export interface UserProfileData {
   id: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   phone: string;
   email: string;
-  location: string;
-  dob?: string;
   gender?: string;
+  addressLine1?: string;
+  city?: string;
+  pincode?: string;
+  location?: string;
   defaultAddress?: string;
   avatarUrl?: string;
 }
 
 export interface EditProfilePayload {
+  firstName?: string;
+  lastName?: string;
   fullName?: string;
+  name?: string;
   phone?: string;
   email?: string;
-  city?: string;
-  address?: string;
-  dob?: string;
   gender?: string;
+  addressLine1?: string;
+  address?: string;
+  defaultAddress?: string;
+  city?: string;
+  pincode?: string;
   avatarUrl?: string;
 }
 
@@ -48,15 +57,15 @@ export interface PartReplacedItem {
 export interface ServiceDetailData {
   id: string;
   serviceType: string;
-  serviceDate: string;
-  odometerKm: number;
-  technicianName: string;
-  technicianRating: number;
+  serviceDate?: string;
+  odometerKm?: number;
+  technicianName?: string;
+  technicianRating?: number;
   technicianAvatar?: string;
   laborItems: LaborInspectionItem[];
   partsReplaced: PartReplacedItem[];
-  technicianNotes: string;
-  totalAmount: number;
+  technicianNotes?: string;
+  totalAmount?: number;
 }
 
 export interface SupportTicketItem {
@@ -78,6 +87,7 @@ export type LanguageOption = "English" | "Hindi (हिंदी)" | "Spanish (E
 
 export type ProfileSubView =
   | 'ACCOUNT'
+  | 'VIEW_PROFILE'
   | 'EDIT_PROFILE'
   | 'SERVICE_HISTORY'
   | 'SERVICE_DETAIL'

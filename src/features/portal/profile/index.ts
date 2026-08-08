@@ -8,6 +8,7 @@ export * from "./components/SupportMainScreen";
 export * from "./components/HelpCenterScreen";
 export * from "./components/ContactScreen";
 export * from "./components/EditProfileScreen";
+export * from "./components/ViewProfileScreen";
 export * from "./components/SettingsScreen";
 export * from "./components/SecurityScreen";
 export * from "./components/TermsAndPrivacyScreen";

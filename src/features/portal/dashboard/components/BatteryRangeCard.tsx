@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 20,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 6,
     width: '100%',
   },
   socContainer: {
