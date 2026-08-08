@@ -236,7 +236,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const [notifications, setNotifications] = useState<CustomerNotificationItem[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
 
-  // Auto-fetch notifications on mount & poll every 10 seconds for real-time red dot updates
+  // Fetch notifications on mount & dashboard updates
   useEffect(() => {
     let isMounted = true;
     const fetchNotifs = async () => {
@@ -247,12 +247,10 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     };
 
     fetchNotifs();
-    const interval = setInterval(fetchNotifs, 10000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
-  }, []);
+  }, [dashboardData]);
 
   const unreadNotifCount = notifications.filter((n) => !n.isRead).length;
 
