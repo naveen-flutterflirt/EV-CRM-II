@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, Dimensions, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useJobCardHistory, useJobCardInspections, useJobCardServices, useJobCardParts, useJobCardInvoice } from '../hooks/useJobCards';
 import { JobCard } from '../types';
 
@@ -9,6 +11,10 @@ const { width } = Dimensions.get('window');
 interface JobCardTrackerScreenProps {
   jobCard?: JobCard;
   onBack: () => void;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
+  customerLocation?: string;
 }
 
 const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: string): number => {
@@ -44,6 +50,10 @@ const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: strin
 export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   jobCard,
   onBack,
+  customerName,
+  customerPhone,
+  customerEmail,
+  customerLocation,
 }) => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
@@ -130,6 +140,381 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       case 'closed': return 'Job card closed and archived';
       case 'cancelled': return 'Job card cancelled';
       default: return jobCard.status.replace(/_/g, ' ').toUpperCase();
+    }
+  };
+
+  const numberToWords = (num: number): string => {
+    const a = [
+      '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+    const convertTens = (n: number): string => {
+      if (n < 20) return a[n];
+      return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+    };
+
+    const convertHundreds = (n: number): string => {
+      if (n > 99) {
+        return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + convertTens(n % 100) : '');
+      }
+      return convertTens(n);
+    };
+
+    const convertThousands = (n: number): string => {
+      if (n > 999) {
+        return convertHundreds(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convertHundreds(n % 1000) : '');
+      }
+      return convertHundreds(n);
+    };
+
+    const convertLakhs = (n: number): string => {
+      if (n > 99999) {
+        return convertHundreds(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convertThousands(n % 100000) : '');
+      }
+      return convertThousands(n);
+    };
+
+    const intPart = Math.floor(num);
+    const words = convertLakhs(intPart);
+    return words ? words + ' Only' : 'Zero Only';
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!invoice) return;
+
+    try {
+      const lineItems: Array<{ no: string; desc: string; hsn: string; qty: number; rate: number; unit: string; total: number; gstRate: number }> = [];
+      
+      if (parts && parts.length > 0) {
+        parts.forEach((p: any) => {
+          lineItems.push({
+            no: String(lineItems.length + 1).padStart(2, "0"),
+            desc: p.partName,
+            hsn: "8507 60 00",
+            qty: p.qty,
+            rate: p.unitPrice,
+            unit: "Nos",
+            total: p.qty * p.unitPrice,
+            gstRate: 18,
+          });
+        });
+      }
+
+      if (services && services.length > 0) {
+        services.forEach((s: any) => {
+          lineItems.push({
+            no: String(lineItems.length + 1).padStart(2, "0"),
+            desc: s.serviceName,
+            hsn: "9987 19 99",
+            qty: 1,
+            rate: s.labourCharge,
+            unit: "Hrs",
+            total: s.labourCharge,
+            gstRate: 18,
+          });
+        });
+      }
+
+      const itemsHtml = lineItems.map((item) => `
+        <tr>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; color: #64748b;">${item.no}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${item.desc}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: #475569;">${item.hsn}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.gstRate}%</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.qty}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: right;">₹${item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center;">${item.unit}</td>
+          <td style="padding: 6px; text-align: right; font-weight: 800; color: #0f172a;">₹${item.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+        </tr>
+      `).join('');
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Tax Invoice</title>
+          <style>
+            body {
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #334155;
+              font-size: 11px;
+            }
+            .invoice-box {
+              width: 100%;
+              border: 1px solid #e2e8f0;
+              padding: 20px;
+              background: #fff;
+              position: relative;
+            }
+            .title {
+              text-align: center;
+              font-size: 18px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 20px;
+              color: #0f172a;
+              border-bottom: 2px solid #f1f5f9;
+              padding-bottom: 10px;
+            }
+            .grid {
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              border: 1px solid #e2e8f0;
+              margin-bottom: 15px;
+            }
+            .grid-col {
+              padding: 10px;
+            }
+            .grid-col-right {
+              border-left: 1px solid #e2e8f0;
+              display: grid;
+              grid-template-cols: 100px 1fr;
+              gap: 5px;
+            }
+            .metadata-label {
+              font-weight: 800;
+              color: #94a3b8;
+              text-transform: uppercase;
+              font-size: 9px;
+            }
+            .metadata-value {
+              font-weight: bold;
+              color: #1e293b;
+            }
+            .bill-to {
+              font-weight: 800;
+              color: #94a3b8;
+              text-transform: uppercase;
+              font-size: 9px;
+              margin-bottom: 5px;
+              display: block;
+            }
+            .buyer-name {
+              font-size: 12px;
+              font-weight: 900;
+              color: #0f172a;
+              margin-bottom: 3px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+              border: 1px solid #e2e8f0;
+            }
+            th {
+              background: #f8fafc;
+              padding: 8px;
+              font-weight: 900;
+              font-size: 10px;
+              border-bottom: 2px solid #e2e8f0;
+              border-right: 1px solid #e2e8f0;
+            }
+            tr {
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .subtotal-row {
+              background: #f8fafc;
+              font-weight: bold;
+            }
+            .tax-box {
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              margin-top: 15px;
+            }
+            .tax-breakdown {
+              border: 1px solid #e2e8f0;
+              padding: 10px;
+              background: #f8fafc;
+              display: flex;
+              flex-direction: column;
+              gap: 5px;
+            }
+            .tax-row {
+              display: flex;
+              justify-content: space-between;
+              font-weight: bold;
+            }
+            .grand-total {
+              font-size: 13px;
+              font-weight: 900;
+              color: #4d6a00;
+              border-top: 1px solid #cbd5e1;
+              padding-top: 5px;
+              margin-top: 5px;
+            }
+            .words-box {
+              border: 1px solid #e2e8f0;
+              padding: 8px;
+              background: #f8fafc;
+              margin-top: 15px;
+              font-weight: bold;
+            }
+            .words-value {
+              color: #0f172a;
+              font-weight: 900;
+            }
+            .declaration-box {
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              border: 1px solid #e2e8f0;
+              margin-top: 20px;
+              font-size: 9px;
+            }
+            .sign-block {
+              text-align: center;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              height: 100px;
+              padding: 10px;
+              border-left: 1px solid #e2e8f0;
+            }
+            .watermark {
+              position: absolute;
+              top: 35%;
+              left: 30%;
+              transform: rotate(-25deg);
+              border: 5px solid #10b981;
+              color: #10b981;
+              font-size: 40px;
+              font-weight: 900;
+              text-transform: uppercase;
+              padding: 10px 30px;
+              border-radius: 10px;
+              opacity: 0.25;
+              letter-spacing: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-box">
+            <div class="watermark">Paid</div>
+            <div class="title">Tax Invoice</div>
+
+            <!-- Vendor / Company Details -->
+            <div class="grid">
+              <div class="grid-col">
+                <div style="font-size: 13px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">FlutterFlirt EV & Mobility</div>
+                <div style="font-weight: bold; color: #1e293b;">${jobCard.center?.centerName || 'Service Center'}</div>
+                <div style="color: #64748b; font-size: 9px; margin-top: 3px; line-height: 1.3;">
+                  Primary EV Workshop Center<br/>
+                  Vashi, Navi Mumbai, MH
+                </div>
+                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: 27AABCF1234M1Z5</div>
+              </div>
+              <div class="grid-col-right" style="border-left: 1px solid #e2e8f0;">
+                <div class="grid-col" style="grid-column: span 2; display: grid; grid-template-cols: 100px 1fr; gap: 5px;">
+                  <div class="metadata-label">Invoice No.</div>
+                  <div class="metadata-value">${invoice.invoiceNumber}</div>
+                  <div class="metadata-label">Dated</div>
+                  <div class="metadata-value">${formatDate(invoice.invoiceDate)}</div>
+                  <div class="metadata-label">Job Card No.</div>
+                  <div class="metadata-value">${jobCard.jobNumber}</div>
+                  <div class="metadata-label">Vehicle Reg No.</div>
+                  <div class="metadata-value">${jobCard.vehicle?.registrationNo || 'N/A'}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Client / Buyer Info -->
+            <div class="grid">
+              <div class="grid-col">
+                <span class="bill-to">Buyer (Bill To)</span>
+                <div class="buyer-name">${customerName || 'Valued Customer'}</div>
+                <div style="color: #64748b; font-size: 9px; line-height: 1.3;">
+                  ${customerLocation || 'Customer Garage'}
+                </div>
+              </div>
+              <div class="grid-col" style="border-left: 1px solid #e2e8f0; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
+                <div class="metadata-label">GSTIN/UIN:</div>
+                <div class="metadata-value">N/A</div>
+                <div class="metadata-label">State:</div>
+                <div class="metadata-value">Maharashtra</div>
+                <div class="metadata-label">Phone:</div>
+                <div class="metadata-value">${customerPhone || 'N/A'}</div>
+                <div class="metadata-label">Email:</div>
+                <div class="metadata-value">${customerEmail || 'N/A'}</div>
+              </div>
+            </div>
+
+            <!-- Goods / Services Table -->
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center;">Sr. No.</th>
+                  <th>Description of Goods / Services</th>
+                  <th style="width: 80px; text-align: center;">HSN/SAC</th>
+                  <th style="width: 60px; text-align: center;">GST Rate</th>
+                  <th style="width: 40px; text-align: center;">Qty</th>
+                  <th style="width: 80px; text-align: right;">Rate (₹)</th>
+                  <th style="width: 40px; text-align: center;">Unit</th>
+                  <th style="width: 90px; text-align: right;">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+                <tr class="subtotal-row">
+                  <td colspan="7" style="text-align: right; padding: 6px; font-weight: 800;">Subtotal (Taxable Amount):</td>
+                  <td style="text-align: right; padding: 6px; font-weight: 900; color: #0f172a;">₹${invoice.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Tax Summary -->
+            <div class="tax-box">
+              <div></div>
+              <div class="tax-breakdown">
+                <div class="tax-row">
+                  <span>Central Tax (CGST @ 9%):</span>
+                  <span>₹${invoice.cgstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="tax-row">
+                  <span>State Tax (SGST @ 9%):</span>
+                  <span>₹${invoice.sgstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="tax-row grand-total">
+                  <span>Invoice Total:</span>
+                  <span>₹${invoice.grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="words-box">
+              Amount Chargeable (in words): <span class="words-value">Rupees ${numberToWords(invoice.grandTotal)}</span>
+            </div>
+
+            <!-- Signature & Declarations -->
+            <div class="declaration-box">
+              <div class="grid-col" style="color: #94a3b8; font-size: 8px; line-height: 1.4;">
+                <span style="font-weight: 800; color: #475569; display: block; margin-bottom: 5px; text-transform: uppercase;">Declaration</span>
+                We declare that this invoice shows the actual price of the goods or services described and that all particulars are true and correct.
+              </div>
+              <div class="sign-block">
+                <span style="font-weight: 800; color: #475569; font-size: 8px;">for FlutterFlirt EV & Mobility</span>
+                <div style="border-bottom: 1px solid #cbd5e1; width: 80%; margin: 15px auto 5px auto;"></div>
+                <span style="font-weight: 800; color: #94a3b8; font-size: 8px; text-transform: uppercase;">Authorised Signatory</span>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Download Invoice ${invoice.invoiceNumber}`,
+        UTI: 'com.adobe.pdf',
+      });
+    } catch (e) {
+      console.error("Error generating/sharing invoice PDF:", e);
+      alert("Failed to generate PDF invoice.");
     }
   };
 
@@ -403,6 +788,17 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
               <Text style={styles.detailsLabel}>AMOUNT PAID</Text>
               <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.amountPaid)).toLocaleString()}</Text>
+
+              {(invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+                <TouchableOpacity 
+                  style={styles.downloadInvoiceBtn}
+                  onPress={handleDownloadInvoice}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.downloadInvoiceBtnText}>Download Invoice</Text>
+                </TouchableOpacity>
+              )}
             </>
           ) : isMock ? (
             <>
@@ -435,6 +831,17 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
           <Text style={styles.detailsVal}>
             {jobCard.promisedAt ? formatDate(jobCard.promisedAt) : 'N/A'}
           </Text>
+
+          {invoice && (invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+            <TouchableOpacity 
+              style={styles.downloadInvoiceBtn}
+              onPress={handleDownloadInvoice}
+              activeOpacity={0.8}
+            >
+              <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.downloadInvoiceBtnText}>Download Invoice</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ),
     },
@@ -485,6 +892,18 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               Step {currentStep === 10 ? 9 : currentStep} of 9 • {Math.round((Math.min(currentStep, 9) / 9) * 100)}% Complete
             </Text>
           </View>
+
+          {/* Persistent Download button on Summary Card if paid / completed */}
+          {invoice && (invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+            <TouchableOpacity 
+              style={[styles.downloadInvoiceBtn, { marginTop: 16, width: '100%', alignSelf: 'stretch' }]}
+              onPress={handleDownloadInvoice}
+              activeOpacity={0.8}
+            >
+              <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+              <Text style={styles.downloadInvoiceBtnText}>Download Tax Invoice</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Steps Stepper List */}
@@ -577,14 +996,6 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
           })}
         </View>
 
-        {/* View inspection notes Button */}
-        <TouchableOpacity 
-          style={styles.inspectionBtn} 
-          onPress={() => setInspectionModalVisible(true)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.inspectionBtnText}>View inspection notes</Text>
-        </TouchableOpacity>
 
         {/* Bottom EV Service Bay Image */}
         <View style={styles.imageContainer}>
@@ -1147,6 +1558,23 @@ const styles = StyleSheet.create({
   emptyBackText: {
     color: '#1a2b0c',
     fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  downloadInvoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4d6a00',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    alignSelf: 'flex-start',
+  },
+  downloadInvoiceBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
   },
