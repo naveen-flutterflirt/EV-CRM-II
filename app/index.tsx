@@ -25,6 +25,7 @@ export default function HomeScreen(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'setup-vehicle' | 'onboarding-loading' | 'home' | 'forgot-password'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
+  const [registrationDraft, setRegistrationDraft] = useState<any>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
 
   const { data: vehicles, isLoading: loadingVehicles } = useCustomerVehicles({
@@ -36,9 +37,12 @@ export default function HomeScreen(): React.JSX.Element {
     completeAuthentication(user);
   };
 
-  const handleRegisterSuccess = (user: any) => {
+  const handleRegisterSuccess = (user: any, formData?: any) => {
     setIsSignupFlow(true);
     setPendingUser(user);
+    if (formData) {
+      setRegistrationDraft(formData);
+    }
     setCurrentScreen('email-verification');
   };
 
@@ -57,10 +61,15 @@ export default function HomeScreen(): React.JSX.Element {
     }
   };
 
-  const handleVerificationSuccess = () => {
-    setPendingUser(null);
-    setIsSignupFlow(false);
-    setCurrentScreen('login');
+  const handleVerificationSuccess = (user?: any) => {
+    const authenticatedUser = user || pendingUser;
+    if (authenticatedUser && (authenticatedUser.userId || authenticatedUser.id)) {
+      completeAuthentication(authenticatedUser);
+    } else {
+      setPendingUser(null);
+      setIsSignupFlow(false);
+      setCurrentScreen('login');
+    }
   };
 
   const handleProfileSetupComplete = () => {
@@ -109,6 +118,9 @@ export default function HomeScreen(): React.JSX.Element {
       <EmailVerificationScreen
         email={pendingUser?.email || ''}
         onVerificationSuccess={handleVerificationSuccess}
+        onChangeEmail={() => {
+          setCurrentScreen('register');
+        }}
         onBackToLogin={() => {
           setPendingUser(null);
           setCurrentScreen('login');
@@ -163,6 +175,7 @@ export default function HomeScreen(): React.JSX.Element {
         <RegisterScreen
           onRegisterSuccess={handleRegisterSuccess}
           onNavigateToLogin={() => setCurrentScreen('login')}
+          initialValues={registrationDraft}
         />
       )}
 

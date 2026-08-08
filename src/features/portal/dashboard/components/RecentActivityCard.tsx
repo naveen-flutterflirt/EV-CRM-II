@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Card } from '../../../../common/components/Card';
 import { ActivityItem } from '../types';
 
@@ -8,54 +9,47 @@ interface RecentActivityCardProps {
 }
 
 export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activities }) => {
-  const activityList = activities && activities.length > 0
-    ? activities
-    : [
-        {
-          id: '1',
-          title: 'Full vehicle health check-up',
-          date: '02 Jul 2026',
-          type: 'completed' as const,
-          subtitle: '02 Jul 2026 • Completed',
-        },
-        {
-          id: '2',
-          title: 'Software Update v2.4',
-          date: '28 Jun 2026',
-          type: 'over-the-air' as const,
-          subtitle: '28 Jun 2026 • Over-the-air',
-        },
-      ];
+  const displayActivities = (activities || []).slice(0, 2);
+  const hasActivities = displayActivities.length > 0;
 
   return (
     <View style={styles.sectionContainer}>
       <Text style={styles.sectionTitle}>Recent activity</Text>
 
       <Card style={styles.cardContainer}>
-        {activityList.map((item, index) => {
-          const isLast = index === activityList.length - 1;
-          const isCompleted = item.type === 'completed';
+        {hasActivities ? (
+          displayActivities.map((item, index) => {
+            const isLast = index === displayActivities.length - 1;
+            const isCompleted = item.type === 'completed';
 
-          return (
-            <View
-              key={item.id || index}
-              style={[styles.activityRow, !isLast && styles.rowBorder]}
-            >
-              {/* Icon Circle */}
-              <View style={[styles.iconCircle, isCompleted ? styles.completedCircle : styles.otaCircle]}>
-                <Text style={[styles.iconText, isCompleted ? styles.completedIconText : styles.otaIconText]}>
-                  {isCompleted ? '✓' : '⚡'}
-                </Text>
-              </View>
+            return (
+              <View
+                key={item.id || index}
+                style={[styles.activityRow, !isLast && styles.rowBorder]}
+              >
+                {/* Icon Circle */}
+                <View style={[styles.iconCircle, isCompleted ? styles.completedCircle : styles.otaCircle]}>
+                  <Text style={[styles.iconText, isCompleted ? styles.completedIconText : styles.otaIconText]}>
+                    {isCompleted ? '✓' : '⚡'}
+                  </Text>
+                </View>
 
-              {/* Text Info */}
-              <View style={styles.textContainer}>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
+                {/* Text Info */}
+                <View style={styles.textContainer}>
+                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
+                </View>
               </View>
+            );
+          })
+        ) : (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Feather name="clock" size={20} color="#94a3b8" />
             </View>
-          );
-        })}
+            <Text style={styles.emptyText}>You don't have any recent activity</Text>
+          </View>
+        )}
       </Card>
     </View>
   );
@@ -63,13 +57,14 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
 
 const styles = StyleSheet.create({
   sectionContainer: {
-    marginBottom: 20,
+    marginBottom: 26,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: '#27272a',
     marginBottom: 10,
+    fontFamily: 'PlusJakartaSans-SemiBold',
   },
   cardContainer: {
     padding: 16,
@@ -118,10 +113,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#18181b',
+    fontFamily: 'PlusJakartaSans-SemiBold',
   },
   activitySubtitle: {
     fontSize: 12,
     color: '#71717a',
     marginTop: 2,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  emptyContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+    fontFamily: 'PlusJakartaSans-Medium',
   },
 });

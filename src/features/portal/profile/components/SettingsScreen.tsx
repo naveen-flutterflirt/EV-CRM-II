@@ -20,7 +20,7 @@ interface SettingsScreenProps {
   onOpenSecurity?: () => void;
   onOpenTermsAndPrivacy?: () => void;
   onBack: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
@@ -31,7 +31,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   onOpenSecurity,
   onOpenTermsAndPrivacy,
   onBack,
-  onLogout,
 }) => {
   const [showLanguageModal, setShowLanguageModal] = useState(false);
 
@@ -60,13 +59,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <Text style={styles.headerTitle}>Settings</Text>
         </View>
 
-        <TouchableOpacity style={styles.avatarCircle} activeOpacity={0.8}>
-          <Feather name="user" size={16} color="#ffffff" />
-        </TouchableOpacity>
+        <View style={styles.avatarCircle}>
+          <Feather name="settings" size={16} color="#ffffff" />
+        </View>
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Spacious & Elegant Options Card */}
+        {/* Options Card */}
         <View style={styles.optionsCard}>
           {/* Push Notifications Toggle */}
           <View style={styles.optionRow}>
@@ -144,15 +143,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               </View>
               <Text style={styles.optionLabel}>App version</Text>
             </View>
-            <Text style={styles.versionValText}>v2.4.0</Text>
+            <Text style={styles.versionValText}>v1.0.0</Text>
           </View>
         </View>
-
-        {/* Elegant Red Log out Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.85}>
-          <Feather name="log-out" size={16} color="#dc2626" style={{ marginRight: 8 }} />
-          <Text style={styles.logoutBtnText}>Log out.</Text>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Language Selector Modal */}
@@ -297,22 +290,6 @@ const styles = StyleSheet.create({
   rowDivider: {
     height: 1,
     backgroundColor: '#f1f5f9',
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fef2f2',
-    borderRadius: 20,
-    height: 52,
-    marginTop: 8,
-    marginBottom: 40,
-  },
-  logoutBtnText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#dc2626',
-    fontFamily: 'PlusJakartaSans-Bold',
   },
   modalOverlay: {
     flex: 1,

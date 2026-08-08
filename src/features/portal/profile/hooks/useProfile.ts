@@ -18,6 +18,9 @@ import {
   ProfileSubView,
 } from "../types";
 import Cookies from "js-cookie";
+import api from "../../../../config/axios";
+import { invalidateAuthMeCache } from "../../../../common/services/authCache";
+import { invalidateAllCache } from "../../../../common/services/apiCache";
 
 export function useProfileState() {
   const [profile, setProfile] = useState<UserProfileData | null>(null);
@@ -63,19 +66,27 @@ export function useProfileState() {
     setSaving(true);
     try {
       await updateUserProfileApi(payload);
-      setProfile((prev) => (prev ? { ...prev, ...payload } : null));
+      const freshUser = await fetchUserProfileApi();
+      setProfile(freshUser);
       setSubView('ACCOUNT');
+    } catch (err: any) {
+      console.error("❌ Save Profile error:", err.message || err);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+    } catch (_e) {}
     Cookies.remove("token");
     Cookies.remove("accessToken");
     Cookies.remove("userRole");
+    invalidateAuthMeCache();
+    invalidateAllCache();
     if (typeof window !== "undefined") {
-      window.location.reload();
+      window.location.href = "/";
     }
   };
 

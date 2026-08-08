@@ -13,28 +13,31 @@ import {
   Keyboard,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import Cookies from 'js-cookie';
 import { sendOtpApi, verifyOtpApi } from '../api';
 
 const { width } = Dimensions.get('window');
 
 interface EmailVerificationScreenProps {
   email: string;
-  onVerificationSuccess: () => void;
+  onVerificationSuccess: (user?: any) => void;
+  onChangeEmail?: () => void;
   onBackToLogin: () => void;
 }
 
 export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = ({
   email: initialEmail,
   onVerificationSuccess,
+  onChangeEmail,
   onBackToLogin,
 }) => {
-  const [phase, setPhase] = useState<'email' | 'otp'>('email');
+  const [phase, setPhase] = useState<'email' | 'otp'>(initialEmail ? 'otp' : 'email');
   const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [resendTimer, setResendTimer] = useState(0);
+  const [resendTimer, setResendTimer] = useState(initialEmail ? 60 : 0);
 
   const otpInputsRef = useRef<Array<TextInput | null>>([]);
 
@@ -93,7 +96,11 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
     try {
       const res = await verifyOtpApi(email, otpCode);
       if (res.success) {
-        onVerificationSuccess();
+        if (res.token) {
+          Cookies.set("token", res.token, { expires: 7 });
+          Cookies.set("userRole", res.user?.role?.roleCode || "customer", { expires: 7 });
+        }
+        onVerificationSuccess(res.user);
       } else {
         setError(res.message || 'Invalid OTP code');
       }
@@ -231,7 +238,16 @@ export const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = (
               )}
             </View>
 
-            <TouchableOpacity style={styles.backBtn} onPress={() => setPhase('email')}>
+            <TouchableOpacity 
+              style={styles.backBtn} 
+              onPress={() => {
+                if (onChangeEmail) {
+                  onChangeEmail();
+                } else {
+                  setPhase('email');
+                }
+              }}
+            >
               <Text style={styles.backBtnText}>Change Email</Text>
             </TouchableOpacity>
           </>

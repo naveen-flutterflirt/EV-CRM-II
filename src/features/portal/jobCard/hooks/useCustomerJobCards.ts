@@ -5,8 +5,8 @@ export function useCustomerJobCards(customerId?: string) {
   const query = useQuery({
     queryKey: ["customerJobCards", customerId],
     queryFn: async () => {
-      const url = customerId ? `/job-cards?customerId=${customerId}` : "/job-cards";
-      const res = await api.get(url);
+      if (!customerId) return [];
+      const res = await api.get(`/job-cards?customerId=${customerId}`);
       const data = res.data?.data || res.data;
       return Array.isArray(data) ? data : (data?.data && Array.isArray(data.data) ? data.data : []);
     },

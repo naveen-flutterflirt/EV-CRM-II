@@ -3,13 +3,15 @@ import { View, StyleSheet, ScrollView, Image } from 'react-native';
 import { RegisterForm } from '../components/RegisterForm';
 
 interface RegisterScreenProps {
-  onRegisterSuccess: (user: any) => void;
+  onRegisterSuccess: (user: any, formData?: any) => void;
   onNavigateToLogin: () => void;
+  initialValues?: any;
 }
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({
   onRegisterSuccess,
   onNavigateToLogin,
+  initialValues,
 }) => {
   return (
     <ScrollView 
@@ -25,6 +27,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         <RegisterForm
           onRegisterSuccess={onRegisterSuccess}
           onNavigateToLogin={onNavigateToLogin}
+          initialValues={initialValues}
         />
       </View>
     </ScrollView>

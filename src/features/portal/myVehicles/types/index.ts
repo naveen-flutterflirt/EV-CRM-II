@@ -2,19 +2,27 @@ export interface Vehicle {
   id: string;
   brand: string;
   model: string;
+  modelName?: string;
+  variant?: string;
   registrationNumber?: string;
+  registrationNo?: string;
   vin?: string;
   motorNo?: string;
   color?: string;
+  odometerKm?: number;
   batteryHealthPct?: number;
   currentRangeKm?: number;
   warrantyStatus?: string;
+  warrantyStart?: string | null;
+  warrantyEnd?: string | null;
+  batteryWarrantyEnd?: string | null;
   motorPower?: string;
   purchaseDate?: string;
   lastServicedDate?: string;
   batteryCapacityKwh?: string | number;
   status?: 'active' | 'sold' | 'scrapped' | 'stolen';
   isPrimary?: boolean;
+  isBatterySwappable?: boolean;
 }
 
 export interface AddVehiclePayload {
@@ -29,6 +37,9 @@ export interface AddVehiclePayload {
   purchaseDate?: string;
   odometerKm?: number;
   status?: 'active' | 'sold' | 'scrapped' | 'stolen';
+  warrantyStart?: string;
+  warrantyEnd?: string;
+  batteryWarrantyEnd?: string;
 }
 
 export interface VehicleModelMeta {

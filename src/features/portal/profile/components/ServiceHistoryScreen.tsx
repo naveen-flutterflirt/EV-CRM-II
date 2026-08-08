@@ -11,26 +11,21 @@ import { Feather } from '@expo/vector-icons';
 import { ServiceHistoryRecord } from '../types';
 
 interface ServiceHistoryScreenProps {
-  history: ServiceHistoryRecord[];
+  history?: ServiceHistoryRecord[];
   onSelectRecord?: (record: ServiceHistoryRecord) => void;
   onBack: () => void;
 }
 
 export const ServiceHistoryScreen: React.FC<ServiceHistoryScreenProps> = ({
-  history,
+  history = [],
   onSelectRecord,
   onBack,
 }) => {
-  const [selectedFilter, setSelectedFilter] = useState<'ALL VEHICLES' | 'MODEL 3'>('ALL VEHICLES');
-
-  const filteredHistory = history.filter((item) => {
-    if (selectedFilter === 'ALL VEHICLES') return true;
-    return item.vehicleModel.toUpperCase().includes('MODEL 3') || item.vehicleModel.toUpperCase().includes('ATHER');
-  });
+  const hasHistory = Array.isArray(history) && history.length > 0;
 
   // Group by year
-  const groupedByYear = filteredHistory.reduce((acc, item) => {
-    const year = item.year || '2024';
+  const groupedByYear = (history || []).reduce((acc, item) => {
+    const year = item.year || '2026';
     if (!acc[year]) acc[year] = [];
     acc[year].push(item);
     return acc;
@@ -49,116 +44,77 @@ export const ServiceHistoryScreen: React.FC<ServiceHistoryScreenProps> = ({
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Vehicle Filter Chips */}
-        <View style={styles.filterChipRow}>
-          <TouchableOpacity
-            style={[
-              styles.chipBtn,
-              selectedFilter === 'ALL VEHICLES' ? styles.chipBtnActive : styles.chipBtnInactive,
-            ]}
-            onPress={() => setSelectedFilter('ALL VEHICLES')}
-            activeOpacity={0.8}
-          >
-            <Feather
-              name="truck"
-              size={14}
-              color={selectedFilter === 'ALL VEHICLES' ? '#ffffff' : '#475569'}
-              style={styles.chipIcon}
-            />
-            <Text
-              style={[
-                styles.chipText,
-                selectedFilter === 'ALL VEHICLES' ? styles.chipTextActive : styles.chipTextInactive,
-              ]}
-            >
-              ALL VEHICLES
-            </Text>
-          </TouchableOpacity>
+        {/* Render History List or Empty State */}
+        {hasHistory ? (
+          years.map((year) => (
+            <View key={year} style={styles.yearSection}>
+              {/* Year Divider */}
+              <View style={styles.yearHeaderRow}>
+                <Text style={styles.yearTitle}>{year}</Text>
+                <View style={styles.yearLine} />
+              </View>
 
-          <TouchableOpacity
-            style={[
-              styles.chipBtn,
-              selectedFilter === 'MODEL 3' ? styles.chipBtnActive : styles.chipBtnInactive,
-            ]}
-            onPress={() => setSelectedFilter('MODEL 3')}
-            activeOpacity={0.8}
-          >
-            <Feather
-              name="truck"
-              size={14}
-              color={selectedFilter === 'MODEL 3' ? '#ffffff' : '#475569'}
-              style={styles.chipIcon}
-            />
-            <Text
-              style={[
-                styles.chipText,
-                selectedFilter === 'MODEL 3' ? styles.chipTextActive : styles.chipTextInactive,
-              ]}
-            >
-              MODEL 3
-            </Text>
-          </TouchableOpacity>
-        </View>
+              {/* Service Item Cards */}
+              <View style={styles.recordsList}>
+                {groupedByYear[year].map((item) => {
+                  const parts = (item.monthDay).split(' ');
+                  const month = parts[0];
+                  const day = parts[1];
 
-        {/* Year Groups */}
-        {years.map((year) => (
-          <View key={year} style={styles.yearSection}>
-            {/* Year Divider */}
-            <View style={styles.yearHeaderRow}>
-              <Text style={styles.yearTitle}>{year}</Text>
-              <View style={styles.yearLine} />
-            </View>
-
-            {/* Service Item Cards */}
-            <View style={styles.recordsList}>
-              {groupedByYear[year].map((item) => {
-                const parts = item.monthDay.split(' ');
-                const month = parts[0] || 'OCT';
-                const day = parts[1] || '12';
-
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.recordCard}
-                    onPress={() => onSelectRecord && onSelectRecord(item)}
-                    activeOpacity={0.8}
-                  >
-                    {/* Date Col */}
-                    <View style={styles.dateCol}>
-                      <Text style={styles.dateMonth}>{month}</Text>
-                      <Text style={styles.dateDay}>{day}</Text>
-                    </View>
-
-                    <View style={styles.cardVertDivider} />
-
-                    {/* Content Col */}
-                    <View style={styles.cardContent}>
-                      <Text style={styles.serviceTitle}>{item.title}</Text>
-                      <View style={styles.kmRow}>
-                        <Feather name="disc" size={12} color="#65a30d" style={styles.kmIcon} />
-                        <Text style={styles.kmText}>
-                          {item.kilometers.toLocaleString()} KM
-                        </Text>
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.recordCard}
+                      onPress={() => onSelectRecord && onSelectRecord(item)}
+                      activeOpacity={0.8}
+                    >
+                      {/* Date Col */}
+                      <View style={styles.dateCol}>
+                        <Text style={styles.dateMonth}>{month}</Text>
+                        <Text style={styles.dateDay}>{day}</Text>
                       </View>
-                    </View>
 
-                    <Feather name="chevron-right" size={18} color="#cbd5e1" />
-                  </TouchableOpacity>
-                );
-              })}
+                      <View style={styles.cardVertDivider} />
+
+                      {/* Content Col */}
+                      <View style={styles.cardContent}>
+                        <Text style={styles.serviceTitle}>{item.title}</Text>
+                        <View style={styles.kmRow}>
+                          <Feather name="disc" size={12} color="#65a30d" style={styles.kmIcon} />
+                          <Text style={styles.kmText}>
+                            {item.kilometers.toLocaleString()} KM
+                          </Text>
+                        </View>
+                      </View>
+
+                      <Feather name="chevron-right" size={18} color="#cbd5e1" />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
+          ))
+        ) : (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconCircle}>
+              <Feather name="file-text" size={28} color="#94a3b8" />
+            </View>
+            <Text style={styles.emptyTitle}>You don't have any service history yet</Text>
+            <Text style={styles.emptySub}>Past service records and invoices will appear here once your vehicle receives service.</Text>
           </View>
-        ))}
+        )}
 
         {/* Watermark Footer */}
-        <View style={styles.footerSection}>
-          <View style={styles.watermarkBadge}>
-            <Feather name="inbox" size={20} color="#cbd5e1" />
+        {hasHistory && (
+          <View style={styles.footerSection}>
+            <View style={styles.watermarkBadge}>
+              <Feather name="inbox" size={20} color="#cbd5e1" />
+            </View>
+            <Text style={styles.watermarkText}>
+              Beginning of history for your current fleet
+            </Text>
           </View>
-          <Text style={styles.watermarkText}>
-            Beginning of history for your current fleet
-          </Text>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,6 +258,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     letterSpacing: 0.5,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  emptyContainer: {
+    paddingVertical: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 6,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  emptySub: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 18,
     fontFamily: 'PlusJakartaSans-Regular',
   },
   footerSection: {

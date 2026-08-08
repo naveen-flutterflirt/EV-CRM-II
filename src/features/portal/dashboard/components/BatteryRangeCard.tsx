@@ -9,13 +9,16 @@ interface BatteryRangeCardProps {
 }
 
 export const BatteryRangeCard: React.FC<BatteryRangeCardProps> = ({
-  batteryPct = 86,
-  rangeKm = 92,
-  odometerKm = 14350,
-  lastSyncedText = '2 min ago',
+  batteryPct,
+  rangeKm,
+  odometerKm,
+  lastSyncedText = 'Just now',
 }) => {
-  // Format odometer with comma separator
-  const formattedOdo = odometerKm.toLocaleString('en-US');
+  const displaySoc = batteryPct !== undefined && batteryPct !== null ? `${batteryPct}%` : 'N/A';
+  const displayRange = rangeKm !== undefined && rangeKm !== null ? `${rangeKm} km` : 'N/A';
+  const displayOdo = odometerKm !== undefined && odometerKm !== null
+    ? `${odometerKm.toLocaleString('en-US')} km`
+    : 'N/A';
 
   return (
     <View style={styles.cardContainer}>
@@ -23,7 +26,7 @@ export const BatteryRangeCard: React.FC<BatteryRangeCardProps> = ({
       <View style={styles.socContainer}>
         <View style={styles.outerRing}>
           <View style={styles.innerCircle}>
-            <Text style={styles.socPercentage}>{batteryPct}%</Text>
+            <Text style={styles.socPercentage}>{displaySoc}</Text>
             <Text style={styles.socLabel}>SOC</Text>
           </View>
         </View>
@@ -35,7 +38,7 @@ export const BatteryRangeCard: React.FC<BatteryRangeCardProps> = ({
         <View style={styles.metricSection}>
           <Text style={styles.metricLabel}>ESTIMATED RANGE</Text>
           <Text style={styles.rangeValue}>
-            {rangeKm} km <Text style={styles.rangeUnit}>remaining</Text>
+            {displayRange} {displayRange !== 'N/A' ? <Text style={styles.rangeUnit}>remaining</Text> : null}
           </Text>
         </View>
 
@@ -45,7 +48,7 @@ export const BatteryRangeCard: React.FC<BatteryRangeCardProps> = ({
         {/* Odometer */}
         <View style={styles.metricSection}>
           <Text style={styles.metricLabel}>ODOMETER</Text>
-          <Text style={styles.odoValue}>{formattedOdo} km</Text>
+          <Text style={styles.odoValue}>{displayOdo}</Text>
         </View>
 
         {/* Last Synced Sync Status */}
@@ -65,7 +68,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     padding: 20,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 6,
     width: '100%',
   },
   socContainer: {

@@ -1,3 +1,5 @@
-export * from "./api";
-export * from "./hooks/useNotifications";
-export * from "./types";
+export * from './types';
+export * from './api';
+export * from './components/NotificationModal';
+export * from './screens/NotificationScreen';
+

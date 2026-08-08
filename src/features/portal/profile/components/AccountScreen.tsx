@@ -13,6 +13,7 @@ import { UserProfileData } from '../types';
 
 interface AccountScreenProps {
   user?: UserProfileData | null;
+  onOpenViewProfile?: () => void;
   onOpenEditProfile: () => void;
   onOpenServiceHistory: () => void;
   onOpenSupport?: () => void;
@@ -22,14 +23,16 @@ interface AccountScreenProps {
 
 export const AccountScreen: React.FC<AccountScreenProps> = ({
   user,
+  onOpenViewProfile,
   onOpenEditProfile,
   onOpenServiceHistory,
   onOpenSupport,
   onOpenSettings,
   onLogout,
 }) => {
-  const userName = user?.name || 'Rohan Mehta';
-  const userPhone = user?.phone || '+91 98765 43210';
+  const userName = user?.name || '';
+  const userPhone = user?.phone || '';
+  const handleProfilePress = onOpenViewProfile || onOpenEditProfile;
 
   const menuItems = [
     {
@@ -58,57 +61,33 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
         {/* Top Header Bar */}
         <View style={styles.topBar}>
           <Text style={styles.headerTitle}>Account</Text>
-          <TouchableOpacity style={styles.topAvatarCircle} onPress={onOpenEditProfile}>
-            <Feather name="user" size={16} color="#ffffff" />
-          </TouchableOpacity>
         </View>
 
         {/* User Profile Card */}
         <View style={styles.userCard}>
           <TouchableOpacity
             style={styles.userLeftGroup}
-            onPress={onOpenEditProfile}
+            onPress={handleProfilePress}
             activeOpacity={0.8}
           >
             <View style={styles.avatarWrap}>
               {user?.avatarUrl ? (
                 <Image source={{ uri: user.avatarUrl }} style={styles.avatarImg} />
               ) : (
-                <Feather name="user" size={26} color="#4d7c0f" />
+                <Feather name="user" size={24} color="#64748b" />
               )}
             </View>
 
             <View style={styles.userMeta}>
-              <View style={styles.nameRow}>
-                <Text style={styles.userName}>{userName}</Text>
-                <TouchableOpacity onPress={onOpenEditProfile}>
-                  <Feather name="edit-2" size={14} color="#65a30d" style={styles.editIcon} />
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.userName}>{userName}</Text>
               <Text style={styles.userPhone}>{userPhone}</Text>
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.bellBtn}>
-            <Feather name="bell" size={18} color="#0f172a" />
+          <TouchableOpacity style={styles.bellBtn} onPress={handleProfilePress}>
+            <Feather name="chevron-right" size={20} color="#64748b" />
           </TouchableOpacity>
         </View>
-
-        {/* Refer & Earn Banner Card */}
-        <TouchableOpacity style={styles.referCard} activeOpacity={0.88}>
-          <View style={styles.referLeft}>
-            <View style={styles.referIconCircle}>
-              <View style={styles.innerLimeCircle} />
-            </View>
-            <View style={styles.referTextCol}>
-              <Text style={styles.referTitle}>Refer & Earn</Text>
-              <Text style={styles.referSub}>Get ₹500 off your next service</Text>
-            </View>
-          </View>
-          <View style={styles.arrowCircle}>
-            <Feather name="arrow-right" size={16} color="#1a2b0c" />
-          </View>
-        </TouchableOpacity>
 
         {/* Menu Options Group (No My Orders route) */}
         <View style={styles.menuGroup}>
@@ -140,7 +119,6 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
             </View>
             <Text style={styles.logoutText}>Log out</Text>
           </View>
-          <Text style={styles.exitText}>EXIT</Text>
         </TouchableOpacity>
 
         {/* Footer Branding Badge */}
@@ -148,7 +126,7 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
           <View style={styles.exclamationCircle}>
             <Text style={styles.exclamationMark}>!</Text>
           </View>
-          <Text style={styles.versionText}>VERSION 2.4.0</Text>
+          <Text style={styles.versionText}>VERSION v1.0.0</Text>
           <Text style={styles.loveText}>MADE WITH LOVE FOR THE FUTURE OF FINANCE</Text>
         </View>
       </ScrollView>
@@ -159,12 +137,12 @@ export const AccountScreen: React.FC<AccountScreenProps> = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#faf8fc',
+    backgroundColor: '#f8fafc',
   },
   container: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 10,
   },
   topBar: {
     flexDirection: 'row',
@@ -173,17 +151,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '800',
-    color: '#1a2b0c',
-    letterSpacing: -0.5,
+    color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Bold',
   },
   topAvatarCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#4d7c0f',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#3f6212',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -191,7 +168,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   userLeftGroup: {
     flexDirection: 'row',
@@ -202,7 +189,9 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    backgroundColor: '#edf6d6',
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -307,6 +296,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 16,
     height: 60,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   menuIconCircle: {
     width: 38,

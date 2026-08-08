@@ -9,14 +9,18 @@ export interface RegisterPayload {
   name: string;
   phone: string;
   email?: string;
+  previousEmail?: string;
   password?: string;
   firstName?: string;
   lastName?: string;
   gender?: string;
   altPhone?: string;
   isFleet?: boolean;
+  gstin?: string;
   streetAddress?: string;
   state?: string;
+  stateId?: string;
+  registeredCenterId?: string;
   city?: string;
   pincode?: string;
 }
@@ -26,6 +30,7 @@ export interface AuthResponse {
   token?: string;
   user?: any;
   message?: string;
+  email?: string;
 }
 export interface ResetPasswordPayload {
   token: string;

@@ -49,25 +49,48 @@ const getFontFamilyForStyle = (style: any): string => {
   return 'PlusJakartaSans-Regular';
 };
 
-// Monkey patch Text and TextInput render functions to apply fonts globally
-const patchComponentFonts = (Component: any) => {
+import { Platform } from 'react-native';
+
+// Monkey patch Text and TextInput render functions to apply fonts globally and strip web outline box
+const patchComponentFonts = (Component: any, isTextInput: boolean = false) => {
   if (!Component || !Component.render) return;
+
+  if (Platform.OS === 'web' && typeof document !== 'undefined') {
+    if (!document.getElementById('global-remove-focus-ring')) {
+      const styleEl = document.createElement('style');
+      styleEl.id = 'global-remove-focus-ring';
+      styleEl.innerHTML = `
+        input, textarea, select, [contenteditable="true"] {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        input:focus, textarea:focus, select:focus, [contenteditable="true"]:focus {
+          outline: none !important;
+          box-shadow: none !important;
+        }
+      `;
+      document.head.appendChild(styleEl);
+    }
+  }
+
   const originalRender = Component.render;
   Component.render = function (props: any, ref: any) {
     const originalStyle = props.style;
     const fontFamily = getFontFamilyForStyle(originalStyle);
     
+    const extraStyle = isTextInput ? { fontFamily, outlineStyle: 'none', outlineWidth: 0 } : { fontFamily };
+    
     const newProps = {
       ...props,
-      style: [{ fontFamily }, originalStyle],
+      style: [extraStyle, originalStyle],
     };
     
     return originalRender.call(this, newProps, ref);
   };
 };
 
-patchComponentFonts(Text);
-patchComponentFonts(TextInput);
+patchComponentFonts(Text, false);
+patchComponentFonts(TextInput, true);
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
