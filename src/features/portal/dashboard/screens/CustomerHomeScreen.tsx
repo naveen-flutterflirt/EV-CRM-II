@@ -213,7 +213,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   onProfilePress,
 }) => {
   const { dashboardData, loading, refreshDashboard } = useCustomerDashboardHook();
-  const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD' | 'RSATRACKER' | 'LIVETRACKING'>('HOME');
+  const [activeTab, setActiveTab] = useState<'HOME' | 'VEHICLES' | 'BOOK' | 'STORE' | 'PROFILE' | 'JOBCARD' | 'RSATRACKER' | 'LIVETRACKING' | 'ORDERPARTS'>('HOME');
 
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
   const [activeRsaRequestId, setActiveRsaRequestId] = useState('');
@@ -409,6 +409,10 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               setSelectedJobCard(null);
               setActiveTab('HOME');
             }}
+            customerName={dashboardData?.user?.name}
+            customerPhone={dashboardData?.user?.phone}
+            customerEmail={dashboardData?.user?.email}
+            customerLocation={dashboardData?.user?.location}
           />
         );
       case 'LIVETRACKING':
@@ -420,6 +424,24 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             <Text style={styles.comingSoonTitle}>Live GPS Tracking</Text>
             <Text style={styles.comingSoonSubtitle}>
               {"We are working on integrating real-time GPS tracking for your vehicle pick-up and service van dispatches. You will be able to track your technician's exact live location on a map right here."}
+            </Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
+            </View>
+            <TouchableOpacity style={styles.comingSoonBackBtn} onPress={() => setActiveTab('HOME')} activeOpacity={0.8}>
+              <Text style={styles.comingSoonBackText}>Back to Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        );
+      case 'ORDERPARTS':
+        return (
+          <View style={styles.comingSoonContainer}>
+            <View style={styles.comingSoonIconCircle}>
+              <Feather name="shopping-bag" size={36} color="#4d6a00" />
+            </View>
+            <Text style={styles.comingSoonTitle}>Order Spare Parts</Text>
+            <Text style={styles.comingSoonSubtitle}>
+              {"We are working on bringing our full catalogue of genuine replacement parts, accessories, and performance upgrades online. You will be able to order parts directly to your home or schedule a workshop fitting."}
             </Text>
             <View style={styles.comingSoonBadge}>
               <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
@@ -577,7 +599,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                 setActiveTab('LIVETRACKING');
                 if (onTrackService) onTrackService();
               }}
-              onOrderParts={onSpareParts}
+              onOrderParts={() => {
+                setActiveTab('ORDERPARTS');
+              }}
             />
 
             {/* 3. Recent Activity Card */}
@@ -620,7 +644,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
 
   return (
     <PortalLayout
-      activeTab={(activeTab === 'JOBCARD' || activeTab === 'RSATRACKER' || activeTab === 'LIVETRACKING') ? 'HOME' : activeTab as any}
+      activeTab={(activeTab === 'JOBCARD' || activeTab === 'RSATRACKER' || activeTab === 'LIVETRACKING' || activeTab === 'ORDERPARTS') ? 'HOME' : activeTab as any}
       onTabChange={(tab) => setActiveTab(tab)}
       user={dashboardData?.user}
       unreadCount={unreadNotifCount}
