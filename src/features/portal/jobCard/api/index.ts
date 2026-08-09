@@ -1,6 +1,6 @@
 import api from '../../../../config/axios';
 import { fetchWithTtlCache, invalidateCacheKey } from '../../../../common/services/apiCache';
-import { JobCard, JobStatusHistory, JobInspection, JobService, JobPart, Invoice, Appointment, RsaRequest } from '../types';
+import { JobCard, JobStatusHistory, JobInspection, JobService, JobPart, Invoice, Appointment, RsaRequest, Estimate } from '../types';
 
 export async function fetchCustomerJobCardsApi(customerId: string): Promise<JobCard[]> {
   return fetchWithTtlCache(`customer_job_cards_${customerId}`, async () => {
@@ -93,5 +93,61 @@ export async function createSosRequestApi(payload: any): Promise<RsaRequest> {
   if (payload?.customerId) {
     invalidateCacheKey(`customer_rsa_${payload.customerId}`);
   }
+  return res.data?.data || res.data;
+}
+
+export async function fetchJobCardEstimateApi(jobCardId: string): Promise<Estimate | null> {
+  return fetchWithTtlCache(`job_estimate_${jobCardId}`, async () => {
+    const res = await api.get(`/estimates?jobCardId=${jobCardId}`);
+    const rawData = res.data?.data || res.data;
+    if (Array.isArray(rawData) && rawData.length > 0) return rawData[0];
+    if (rawData && Array.isArray(rawData.data) && rawData.data.length > 0) return rawData.data[0];
+    if (rawData && !Array.isArray(rawData) && typeof rawData === 'object') return rawData;
+    return null;
+  }, 1000 * 60 * 5);
+}
+
+export async function approveJobCardEstimateApi(jobCardId: string, estimateId?: string): Promise<any> {
+  let finalEstId = estimateId;
+  
+  if (!finalEstId) {
+    const res = await api.get(`/estimates?jobCardId=${jobCardId}`);
+    const rawData = res.data?.data || res.data;
+    const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+    if (list.length > 0) {
+      finalEstId = list[0].estimateId || list[0].id;
+    } else {
+      const createRes = await api.post(`/estimates`, { jobCardId });
+      const created = createRes.data?.data || createRes.data;
+      finalEstId = created?.estimateId || created?.id;
+    }
+  }
+
+  if (!finalEstId) {
+    throw new Error('No estimate found or could be created');
+  }
+
+  // 1. Approve estimate
+  const res = await api.patch(`/estimates/${finalEstId}`, { isApproved: true });
+
+  // 2. Update job card status
+  await api.patch(`/job-cards/${jobCardId}`, {
+    status: 'in_progress',
+    statusRemarks: 'Estimate approved by customer'
+  });
+
+  // 3. Create job status history
+  await api.post(`/job-status-histories`, {
+    jobCardId,
+    oldStatus: 'awaiting_approval',
+    newStatus: 'in_progress',
+    remarks: 'Estimate approved by customer'
+  });
+
+  // Invalidate cache
+  invalidateCacheKey(`job_estimate_${jobCardId}`);
+  invalidateCacheKey(`job_card_history_${jobCardId}`);
+  invalidateCacheKey(`customer_dashboard`);
+  
   return res.data?.data || res.data;
 }

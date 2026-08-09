@@ -13,7 +13,7 @@ import {
   fetchJobCardEstimateApi,
   approveJobCardEstimateApi,
 } from '../api';
-import { JobCard, Appointment, RsaRequest } from '../types';
+import { JobCard, Appointment, RsaRequest, Estimate } from '../types';
 
 const DEFAULT_STALE_TIME = 1000 * 60 * 2; // 2 minutes cache TTL
 
@@ -105,6 +105,28 @@ export function useCreateSosRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['portal', 'rsaRequests'] });
       queryClient.invalidateQueries({ queryKey: ['portal', 'customer', 'dashboard'] });
+    },
+  });
+}
+
+export function useJobCardEstimate(jobCardId?: string) {
+  return useQuery<Estimate | null>({
+    queryKey: ['portal', 'jobCardEstimate', jobCardId],
+    queryFn: () => fetchJobCardEstimateApi(jobCardId || ''),
+    enabled: !!jobCardId,
+    staleTime: DEFAULT_STALE_TIME,
+  });
+}
+
+export function useApproveJobCardEstimate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: { jobCardId: string; estimateId?: string }) =>
+      approveJobCardEstimateApi(variables.jobCardId, variables.estimateId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['portal', 'jobCards'] });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'jobCardHistory', variables.jobCardId] });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'jobCardEstimate', variables.jobCardId] });
     },
   });
 }
