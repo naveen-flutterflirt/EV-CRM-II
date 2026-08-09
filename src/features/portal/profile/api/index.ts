@@ -124,35 +124,52 @@ export async function fetchServiceHistoryApi(): Promise<ServiceHistoryRecord[]> 
       return [];
     }
 
-    const res = await api.get(`/job-cards?customerId=${customerId}`);
-    const data = res.data?.data || res.data;
-    if (Array.isArray(data) && data.length > 0) {
-      return data.map((item: any, idx: number) => {
-        const rawDate = item.openedAt || item.createdAt || item.completedAt;
-        const dateObj = rawDate ? new Date(rawDate) : new Date();
-        const year = dateObj.getFullYear().toString();
-        const monthDay = dateObj.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
-        return {
-          id: item.id || item.jobCardId || `srv_${idx}`,
-          dateStr: dateObj.toLocaleDateString(),
-          year: year,
-          monthDay: monthDay,
-          title: item.serviceName || item.serviceType || item.title || "Vehicle Service",
-          kilometers: item.kilometerReading || item.odometerKm || item.currentOdometer || 0,
-          vehicleModel: item.vehicleModel || item.vehicle?.model?.modelName || item.vehicle?.modelName || "EV",
-        };
-      });
-    }
+    return fetchWithTtlCache(`service_history_${customerId}`, async () => {
+      const res = await api.get(`/job-cards?customerId=${customerId}`);
+      const data = res.data?.data || res.data;
+      if (Array.isArray(data) && data.length > 0) {
+        return data.map((item: any, idx: number) => {
+          const rawDate = item.openedAt || item.createdAt || item.completedAt;
+          const dateObj = rawDate ? new Date(rawDate) : new Date();
+          const year = dateObj.getFullYear().toString();
+          const monthDay = dateObj.toLocaleDateString("en-US", { month: "short", day: "2-digit" }).toUpperCase();
+          return {
+            id: item.id || item.jobCardId || `srv_${idx}`,
+            dateStr: dateObj.toLocaleDateString(),
+            year: year,
+            monthDay: monthDay,
+            title: item.serviceName || item.serviceType || item.title || "Vehicle Service",
+            kilometers: item.kilometerReading || item.odometerKm || item.currentOdometer || 0,
+            vehicleModel: item.vehicleModel || item.vehicle?.model?.modelName || item.vehicle?.modelName || "EV",
+          };
+        });
+      }
+      return [];
+    }, 1000 * 60 * 5); // 5 minutes TTL
   } catch (err) {
     console.warn("⚠️ Service History API Error:", err);
+    return [];
   }
-
-  return [];
 }
 
 export async function fetchServiceDetailApi(serviceId?: string): Promise<ServiceDetailData> {
-  try {
-    if (serviceId) {
+  if (!serviceId) {
+    return {
+      id: "sh_empty",
+      serviceType: "Vehicle Service",
+      serviceDate: undefined,
+      odometerKm: undefined,
+      technicianName: undefined,
+      technicianRating: undefined,
+      laborItems: [],
+      partsReplaced: [],
+      technicianNotes: undefined,
+      totalAmount: undefined,
+    };
+  }
+
+  return fetchWithTtlCache(`service_detail_${serviceId}`, async () => {
+    try {
       const res = await api.get(`/job-cards/${serviceId}`);
       const data = res.data?.data || res.data;
       if (data) {
@@ -171,23 +188,23 @@ export async function fetchServiceDetailApi(serviceId?: string): Promise<Service
           totalAmount: data.totalAmount !== undefined && data.totalAmount !== null && Number(data.totalAmount) > 0 ? Number(data.totalAmount) : undefined,
         };
       }
+    } catch (err) {
+      console.warn("⚠️ Service Detail API Warning:", err);
     }
-  } catch (err) {
-    console.warn("⚠️ Service Detail API Warning:", err);
-  }
 
-  return {
-    id: serviceId || "sh_empty",
-    serviceType: "Vehicle Service",
-    serviceDate: undefined,
-    odometerKm: undefined,
-    technicianName: undefined,
-    technicianRating: undefined,
-    laborItems: [],
-    partsReplaced: [],
-    technicianNotes: undefined,
-    totalAmount: undefined,
-  };
+    return {
+      id: serviceId,
+      serviceType: "Vehicle Service",
+      serviceDate: undefined,
+      odometerKm: undefined,
+      technicianName: undefined,
+      technicianRating: undefined,
+      laborItems: [],
+      partsReplaced: [],
+      technicianNotes: undefined,
+      totalAmount: undefined,
+    };
+  }, 1000 * 60 * 5); // 5 minutes TTL
 }
 
 // Support Tickets List (No /api/support/tickets endpoint exists in backend, return empty array directly)

@@ -39,21 +39,44 @@ export function useProfileState() {
   const [faqCategoryFilter, setFaqCategoryFilter] = useState<'Getting Started' | 'Payments'>('Getting Started');
   const [expandedFaqId, setExpandedFaqId] = useState<string>('faq_1');
 
+  const [loadingServiceHistory, setLoadingServiceHistory] = useState(false);
+  const [loadingSupport, setLoadingSupport] = useState(false);
+
   useEffect(() => {
-    Promise.all([
-      fetchUserProfileApi(),
-      fetchServiceHistoryApi(),
-      fetchSupportTicketsApi(),
-      fetchFaqsApi(),
-    ])
-      .then(([userData, historyData, ticketsData, faqsData]) => {
+    fetchUserProfileApi()
+      .then((userData) => {
         setProfile(userData);
-        setServiceHistory(historyData);
-        setSupportTickets(ticketsData);
-        setFaqs(faqsData);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const openServiceHistory = async () => {
+    setLoadingServiceHistory(true);
+    setSubView('SERVICE_HISTORY');
+    try {
+      const historyData = await fetchServiceHistoryApi();
+      setServiceHistory(historyData);
+    } catch (_e) {
+    } finally {
+      setLoadingServiceHistory(false);
+    }
+  };
+
+  const openSupport = async () => {
+    setLoadingSupport(true);
+    setSubView('SUPPORT_MAIN');
+    try {
+      const [ticketsData, faqsData] = await Promise.all([
+        fetchSupportTicketsApi(),
+        fetchFaqsApi(),
+      ]);
+      setSupportTickets(ticketsData);
+      setFaqs(faqsData);
+    } catch (_e) {
+    } finally {
+      setLoadingSupport(false);
+    }
+  };
 
   const openServiceDetail = (record: ServiceHistoryRecord) => {
     setSelectedServiceId(record.id);
@@ -114,6 +137,10 @@ export function useProfileState() {
     setFaqCategoryFilter,
     expandedFaqId,
     setExpandedFaqId,
+    openServiceHistory,
+    openSupport,
+    loadingServiceHistory,
+    loadingSupport,
     openServiceDetail,
     handleSaveProfile,
     handleLogout,

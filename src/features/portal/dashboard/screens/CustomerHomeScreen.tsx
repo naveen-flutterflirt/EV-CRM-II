@@ -79,6 +79,8 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking, onLogout
     setPushNotificationsEnabled,
     selectedLanguage,
     setSelectedLanguage,
+    openServiceHistory,
+    openSupport,
     openServiceDetail,
     handleSaveProfile,
   } = useProfileState();
@@ -189,8 +191,8 @@ const ProfileTabFlow: React.FC<ProfileTabFlowProps> = ({ onGoToBooking, onLogout
       user={profile}
       onOpenViewProfile={() => setSubView('VIEW_PROFILE')}
       onOpenEditProfile={() => setSubView('EDIT_PROFILE')}
-      onOpenServiceHistory={() => setSubView('SERVICE_HISTORY')}
-      onOpenSupport={() => setSubView('SUPPORT_MAIN')}
+      onOpenServiceHistory={openServiceHistory}
+      onOpenSupport={openSupport}
       onOpenSettings={() => setSubView('SETTINGS')}
       onLogout={onLogoutRequest}
     />

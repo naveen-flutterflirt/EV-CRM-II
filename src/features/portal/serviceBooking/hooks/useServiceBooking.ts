@@ -2,10 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchAvailableSlotsApi, createBookingApi, fetchServiceCentersApi } from "../api";
 import { BookingPayload } from "../types";
 
-export function useServiceCenters() {
+export function useServiceCenters(enabled = true) {
   return useQuery({
     queryKey: ["portal", "serviceCenters"],
     queryFn: fetchServiceCentersApi,
+    enabled,
   });
 }
 

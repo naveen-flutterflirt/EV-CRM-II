@@ -38,8 +38,8 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
   // RSA details after request made
   const [createdRsaDetails, setCreatedRsaDetails] = useState<any>(null);
 
-  // Fetch centers from backend API
-  const { data: dbCenters, isLoading: loadingCenters } = useServiceCenters();
+  // Fetch centers from backend API only when center selection step is active
+  const { data: dbCenters, isLoading: loadingCenters } = useServiceCenters(step === 2 || step === 3);
 
   const formattedCenters = dbCenters && dbCenters.length > 0
     ? dbCenters.map((c, idx) => ({
