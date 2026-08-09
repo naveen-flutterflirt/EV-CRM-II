@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCustomerJobCardsApi,
   fetchJobCardHistoryApi,
@@ -13,14 +13,16 @@ import {
   fetchJobCardEstimateApi,
   approveJobCardEstimateApi,
 } from '../api';
-import { JobCard, Appointment, RsaRequest, Estimate } from '../types';
+import { JobCard, Appointment, RsaRequest } from '../types';
+
+const DEFAULT_STALE_TIME = 1000 * 60 * 2; // 2 minutes cache TTL
 
 export function useActiveJobCard(customerId?: string) {
   return useQuery<JobCard[]>({
     queryKey: ['portal', 'jobCards', customerId],
     queryFn: () => fetchCustomerJobCardsApi(customerId || ''),
     enabled: !!customerId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -29,7 +31,7 @@ export function useJobCardHistory(jobCardId?: string) {
     queryKey: ['portal', 'jobCardHistory', jobCardId],
     queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
     enabled: !!jobCardId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -38,7 +40,7 @@ export function useJobCardInspections(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInspections', jobCardId],
     queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
     enabled: !!jobCardId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -47,7 +49,7 @@ export function useJobCardServices(jobCardId?: string) {
     queryKey: ['portal', 'jobCardServices', jobCardId],
     queryFn: () => fetchJobServicesApi(jobCardId || ''),
     enabled: !!jobCardId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -56,7 +58,7 @@ export function useJobCardParts(jobCardId?: string) {
     queryKey: ['portal', 'jobCardParts', jobCardId],
     queryFn: () => fetchJobPartsApi(jobCardId || ''),
     enabled: !!jobCardId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -65,7 +67,7 @@ export function useJobCardInvoice(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInvoice', jobCardId],
     queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
     enabled: !!jobCardId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -74,7 +76,7 @@ export function useCustomerAppointments(customerId?: string) {
     queryKey: ['portal', 'appointments', customerId],
     queryFn: () => fetchCustomerAppointmentsApi(customerId || ''),
     enabled: !!customerId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -83,7 +85,7 @@ export function useCustomerRsaRequests(customerId?: string) {
     queryKey: ['portal', 'rsaRequests', customerId],
     queryFn: () => fetchCustomerRsaRequestsApi(customerId || ''),
     enabled: !!customerId,
-    staleTime: 0,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
 
@@ -92,28 +94,17 @@ export function useRsaRequestDetails(requestId?: string) {
     queryKey: ['portal', 'rsaRequestDetails', requestId],
     queryFn: () => fetchRsaRequestDetailsApi(requestId || ''),
     enabled: !!requestId,
-    staleTime: 0,
+    staleTime: 1000 * 30, // 30 seconds
   });
 }
 
 export function useCreateSosRequest() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: any) => createSosRequestApi(payload),
-  });
-}
-
-export function useJobCardEstimate(jobCardId?: string) {
-  return useQuery({
-    queryKey: ['portal', 'jobCardEstimate', jobCardId],
-    queryFn: () => fetchJobCardEstimateApi(jobCardId || ''),
-    enabled: !!jobCardId,
-    staleTime: 0,
-  });
-}
-
-export function useApproveJobCardEstimate() {
-  return useMutation({
-    mutationFn: (variables: { jobCardId: string; estimateId?: string }) =>
-      approveJobCardEstimateApi(variables.jobCardId, variables.estimateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['portal', 'rsaRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['portal', 'customer', 'dashboard'] });
+    },
   });
 }
