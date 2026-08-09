@@ -10,7 +10,10 @@ import {
   Linking
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useRsaRequestDetails } from '../hooks/useJobCards';
+import { useRsaRequestDetails, useRsaInvoice } from '../hooks/useJobCards';
+import { useQueryClient } from '@tanstack/react-query';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 interface RsaTrackerScreenProps {
   requestId: string;
@@ -21,29 +24,35 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
   requestId,
   onBack,
 }) => {
-  const { data: request, isLoading, error } = useRsaRequestDetails(requestId);
+  const queryClient = useQueryClient();
+  const { data: request, isLoading, error, refetch: refetchRequest } = useRsaRequestDetails(requestId);
+  const { data: invoice, isLoading: loadingInvoice, refetch: refetchInvoice } = useRsaInvoice(requestId);
+  
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Compute status conditions matching ERP LifecycleTracker
   const status = (request?.status || 'requested').toLowerCase();
   const assignment = request?.assignments?.[0];
 
-  const isAssigned = Boolean(assignment || ['assigned', 'en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(status));
-  const isAccepted = Boolean((assignment && assignment.status === 'accepted') || ['en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(status));
-  const isEnroute = Boolean(['en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(status));
-  const isResolved = Boolean(['resolved', 'billed', 'closed'].includes(status));
-  const isBilled = Boolean(request?.isBilled || status === 'closed');
-  const isClosed = Boolean(request?.isClosed || status === 'closed');
+  const isAssigned = Boolean(assignment || ['assigned', 'en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(status));
+  const isAccepted = Boolean((assignment && assignment.status === 'accepted') || ['en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(status));
+  const isEnroute = Boolean(['en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(status));
+  const isResolved = Boolean(request?.resolvedAt || ['resolved', 'towed', 'closed'].includes(status));
+  const isBilled = Boolean(invoice);
+  const isPaid = Boolean(invoice && (invoice.status.toLowerCase() === 'paid' || invoice.paymentStatus?.toLowerCase() === 'paid'));
+  const isClosed = Boolean(request?.closedAt || status === 'closed');
 
-  // Compute current active step (1 to 7)
+  // Compute current active step (1 to 8)
   const getActiveRsaStep = (): number => {
-    if (isClosed) return 7;
-    if (isBilled) return 6;
-    if (isResolved) return 5;
-    if (isEnroute) return 4;
-    if (isAccepted) return 3;
-    if (isAssigned) return 2;
-    return 1;
+    if (isClosed) return 8; // Closed
+    if (isPaid) return 8; // Advance to Step 8 if paid
+    if (isBilled) return 7; // Active step is 7 (Paid) if billed
+    if (isResolved) return 6; // Active step is 6 (Billed) if resolved
+    if (isEnroute) return 5; // Active step is 5 (Resolved) if enroute
+    if (isAccepted) return 4; // Active step is 4 (Enroute) if accepted
+    if (isAssigned) return 3; // Active step is 3 (Accepted) if assigned
+    return 2; // Active step is 2 (Assigned) if requested
   };
 
   const currentStep = getActiveRsaStep();
@@ -54,6 +63,46 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
       setExpandedStep(currentStep);
     }
   }, [currentStep]);
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ef4444" />
+        <Text style={styles.loadingText}>Loading tracking details...</Text>
+      </View>
+    );
+  }
+
+  if (error || !request) {
+    return (
+      <View style={styles.errorContainer}>
+        <Feather name="alert-triangle" size={48} color="#ef4444" />
+        <Text style={styles.errorTitle}>Failed to load status</Text>
+        <Text style={styles.errorText}>
+          {error instanceof Error ? error.message : 'Please check your connection or try again later.'}
+        </Text>
+        <TouchableOpacity style={styles.errorBackButton} onPress={onBack}>
+          <Text style={styles.errorBackButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['portal', 'rsaRequests'] });
+      await queryClient.invalidateQueries({ queryKey: ['portal', 'customer', 'dashboard'] });
+      await Promise.all([
+        refetchRequest(),
+        refetchInvoice()
+      ]);
+    } catch (err) {
+      console.error("Error syncing RSA status:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleCallTechnician = (phone: string) => {
     Linking.openURL(`tel:${phone}`).catch(() => {
@@ -71,29 +120,433 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     }
   };
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#95d03a" />
-        <Text style={styles.loadingText}>Fetching RSA Request status...</Text>
-      </View>
-    );
-  }
+  const numberToWords = (num: number) => {
+    const a = [
+      '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+      'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+    ];
+    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
 
-  if (error || !request) {
-    return (
-      <View style={styles.errorContainer}>
-        <Feather name="alert-triangle" size={48} color="#ef4444" />
-        <Text style={styles.errorTitle}>Failed to Load Status</Text>
-        <Text style={styles.errorText}>{"We couldn't retrieve the roadside assistance details."}</Text>
-        <TouchableOpacity style={styles.errorBackButton} onPress={onBack}>
-          <Text style={styles.errorBackButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+    const convertThousands = (n: number): string => {
+      if (n < 20) return a[n];
+      const digit = n % 10;
+      if (n < 100) return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+      const hundredPart = a[Math.floor(n / 100)] + ' Hundred';
+      const tenPart = n % 100;
+      return hundredPart + (tenPart ? ' and ' + convertThousands(tenPart) : '');
+    };
 
-  // Visual text for step descriptors
+    const convertLakhs = (n: number): string => {
+      if (n < 1000) return convertThousands(n);
+      if (n < 100000) {
+        const thousandPart = convertThousands(Math.floor(n / 1000)) + ' Thousand';
+        const restPart = n % 1000;
+        return thousandPart + (restPart ? ' ' + convertThousands(restPart) : '');
+      }
+      const lakhPart = convertThousands(Math.floor(n / 100000)) + ' Lakh';
+      const restPart = n % 100000;
+      return lakhPart + (restPart ? ' ' + convertLakhs(restPart) : '');
+    };
+
+    const intPart = Math.floor(num);
+    const words = convertLakhs(intPart);
+    return words ? words + ' Only' : 'Zero Only';
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!invoice || !request) return;
+
+    try {
+      const lineItems: Array<{ no: string; desc: string; hsn: string; qty: number; rate: number; unit: string; total: number; gstRate: number }> = [];
+      
+      // 1. Towing charges
+      if (invoice.towingCharges && Number(invoice.towingCharges) > 0) {
+        lineItems.push({
+          no: String(lineItems.length + 1).padStart(2, "0"),
+          desc: `Emergency Towing Service (${invoice.towingDistanceKm || 0} km)`,
+          hsn: "9987 29",
+          qty: 1,
+          rate: Number(invoice.towingCharges),
+          unit: "Nos",
+          total: Number(invoice.towingCharges),
+          gstRate: Number(invoice.gstRate || 18),
+        });
+      }
+
+      // 2. Parts consumed
+      if (invoice.rsaJobCard?.partsConsumed && Array.isArray(invoice.rsaJobCard.partsConsumed)) {
+        invoice.rsaJobCard.partsConsumed.forEach((p: any) => {
+          lineItems.push({
+            no: String(lineItems.length + 1).padStart(2, "0"),
+            desc: p.partName || p.desc || "EV Replacement Part",
+            hsn: p.partNumber || "8507 60 00",
+            qty: p.quantity || 1,
+            rate: Number(p.unitPrice || 0),
+            unit: "Nos",
+            total: (p.quantity || 1) * Number(p.unitPrice || 0),
+            gstRate: Number(invoice.gstRate || 18),
+          });
+        });
+      }
+
+      // 3. Labor charges
+      const laborCharges = Number(invoice.rsaJobCard?.laborCharges || invoice.laborTotal || 0);
+      if (laborCharges > 0) {
+        lineItems.push({
+          no: String(lineItems.length + 1).padStart(2, "0"),
+          desc: "On-Site Repair Labor / Troubleshooting",
+          hsn: "9987 19",
+          qty: 1,
+          rate: laborCharges,
+          unit: "Hrs",
+          total: laborCharges,
+          gstRate: Number(invoice.gstRate || 18),
+        });
+      }
+
+      // Fallback fallback if invoice has grand total but no job card lines recorded
+      if (lineItems.length === 0 && Number(invoice.grandTotal) > 0) {
+        lineItems.push({
+          no: "01",
+          desc: "Roadside Assistance Service Fees",
+          hsn: "9987 29",
+          qty: 1,
+          rate: Number(invoice.taxableAmount || invoice.grandTotal),
+          unit: "Nos",
+          total: Number(invoice.taxableAmount || invoice.grandTotal),
+          gstRate: Number(invoice.gstRate || 18),
+        });
+      }
+
+      const itemsHtml = lineItems.map((item) => `
+        <tr>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; color: #64748b;">${item.no}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${item.desc}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: #475569;">${item.hsn}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.gstRate}%</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.qty}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: right;">₹${item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center;">${item.unit}</td>
+          <td style="padding: 6px; text-align: right; font-weight: 800; color: #0f172a;">₹${item.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+        </tr>
+      `).join('');
+
+      const customerName = request.customer
+        ? `${request.customer.firstName || ''} ${request.customer.lastName || ''}`.trim()
+        : 'Valued Customer';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>RSA Tax Invoice</title>
+          <style>
+            body {
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              margin: 0;
+              padding: 20px;
+              color: #334155;
+              font-size: 11px;
+            }
+            .invoice-box {
+              width: 100%;
+              border: 2px solid #101828;
+              padding: 20px;
+              background: #fff;
+              position: relative;
+            }
+            .title {
+              text-align: center;
+              font-size: 18px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 20px;
+              color: #0f172a;
+              border-bottom: 2px solid #101828;
+              padding-bottom: 10px;
+            }
+            .grid {
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              border: 2px solid #101828;
+              margin-bottom: 15px;
+            }
+            .grid-col {
+              padding: 10px;
+            }
+            .grid-col-right {
+              border-left: 2px solid #101828;
+              display: grid;
+              grid-template-cols: 100px 1fr;
+              gap: 5px;
+            }
+            .metadata-label {
+              font-weight: 800;
+              color: #94a3b8;
+              text-transform: uppercase;
+              font-size: 9px;
+            }
+            .metadata-value {
+              font-weight: bold;
+              color: #1e293b;
+            }
+            .bill-to {
+              font-weight: 800;
+              color: #94a3b8;
+              text-transform: uppercase;
+              font-size: 9px;
+              margin-bottom: 5px;
+              display: block;
+            }
+            .buyer-name {
+              font-size: 12px;
+              font-weight: 900;
+              color: #0f172a;
+              margin-bottom: 3px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+              border: 2px solid #101828;
+            }
+            th {
+              background: #f8fafc;
+              padding: 8px;
+              font-weight: 900;
+              font-size: 10px;
+              border-bottom: 2px solid #101828;
+              border-right: 1px solid #e2e8f0;
+            }
+            tr {
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .subtotal-row {
+              background: #f8fafc;
+              font-weight: bold;
+            }
+            .tax-box {
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              margin-top: 15px;
+            }
+            .tax-breakdown {
+              border: 2px solid #101828;
+              padding: 10px;
+              background: #f8fafc;
+              display: flex;
+              flex-direction: column;
+              gap: 5px;
+            }
+            .tax-row {
+              display: flex;
+              justify-content: space-between;
+              font-weight: bold;
+            }
+            .grand-total {
+              font-size: 13px;
+              font-weight: 900;
+              color: #ef4444;
+              border-top: 1px solid #cbd5e1;
+              padding-top: 5px;
+              margin-top: 5px;
+            }
+            .words-box {
+              border: 2px solid #101828;
+              padding: 8px;
+              background: #f8fafc;
+              margin-top: 15px;
+              font-weight: bold;
+            }
+            .words-value {
+              color: #0f172a;
+              font-weight: 900;
+            }
+            .payment-summary-box {
+              border: 2px solid #101828;
+              padding: 10px;
+              margin-top: 15px;
+              background-color: #f8fafc;
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px;
+              font-weight: bold;
+            }
+            .bank-details-box {
+              border: 2px solid #101828;
+              padding: 10px;
+              margin-top: 15px;
+              display: grid;
+              grid-template-cols: 1fr 1fr;
+              font-size: 10px;
+            }
+            .declaration-box {
+              border: 2px solid #101828;
+              margin-top: 15px;
+              padding: 8px;
+              font-size: 8px;
+              color: #64748b;
+              line-height: 1.3;
+            }
+            .watermark {
+              position: absolute;
+              top: 35%;
+              left: 30%;
+              transform: rotate(-25deg);
+              border: 5px solid ${isPaid ? '#10b981' : '#ef4444'};
+              color: ${isPaid ? '#10b981' : '#ef4444'};
+              font-size: 40px;
+              font-weight: 900;
+              text-transform: uppercase;
+              padding: 10px 30px;
+              border-radius: 10px;
+              opacity: 0.25;
+              letter-spacing: 4px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-box">
+            <div class="watermark">${isPaid ? 'Paid' : 'Unpaid'}</div>
+            <div class="title">Roadside Assist Tax Invoice</div>
+
+            <!-- Vendor / Company Details -->
+            <div class="grid">
+              <div class="grid-col">
+                <div style="font-size: 13px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">FlutterFlirt EV & Mobility</div>
+                <div style="font-weight: bold; color: #1e293b;">${request.center?.centerName || 'Bhopal Head Office'}</div>
+                <div style="color: #64748b; font-size: 9px; margin-top: 3px; line-height: 1.3;">
+                  ${request.center?.address || '123 Arera Colony, Bhopal, MP — 462016'}
+                </div>
+                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: ${request.center?.gstin || '23AAACF1234A1Z1'}</div>
+              </div>
+              <div class="grid-col-right">
+                <div class="grid-col" style="grid-column: span 2; display: grid; grid-template-cols: 100px 1fr; gap: 5px;">
+                  <div class="metadata-label">Invoice No.</div>
+                  <div class="metadata-value">${invoice.invoiceNumber}</div>
+                  <div class="metadata-label">Dated</div>
+                  <div class="metadata-value">${new Date(invoice.invoiceDate || invoice.createdAt || '').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                  <div class="metadata-label">Request No.</div>
+                  <div class="metadata-value">${request.requestNumber}</div>
+                  <div class="metadata-label">Vehicle Reg No.</div>
+                  <div class="metadata-value">${request.vehicle?.registrationNo || request.vehiclePlate || 'N/A'}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Client / Buyer Info -->
+            <div class="grid">
+              <div class="grid-col">
+                <span class="bill-to">Buyer (Bill To)</span>
+                <div class="buyer-name">${customerName}</div>
+                <div style="color: #64748b; font-size: 9px; line-height: 1.3;">
+                  ${request.breakdownAddress || 'Emergency Breakdown Location'}
+                </div>
+              </div>
+              <div class="grid-col" style="border-left: 2px solid #101828; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
+                <div class="metadata-label">GSTIN/UIN:</div>
+                <div class="metadata-value">N/A</div>
+                <div class="metadata-label">State:</div>
+                <div class="metadata-value">Madhya Pradesh</div>
+                <div class="metadata-label">Phone:</div>
+                <div class="metadata-value">${request.customer?.phone || 'N/A'}</div>
+              </div>
+            </div>
+
+            <!-- Goods / Services Table -->
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px; text-align: center;">Sr. No.</th>
+                  <th>Description of Goods / Services</th>
+                  <th style="width: 80px; text-align: center;">HSN/SAC</th>
+                  <th style="width: 60px; text-align: center;">GST Rate</th>
+                  <th style="width: 40px; text-align: center;">Qty</th>
+                  <th style="width: 80px; text-align: right;">Rate (₹)</th>
+                  <th style="width: 40px; text-align: center;">Unit</th>
+                  <th style="width: 90px; text-align: right;">Amount (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+                <tr class="subtotal-row">
+                  <td colspan="7" style="text-align: right; padding: 6px; font-weight: 800;">Subtotal (Taxable Amount):</td>
+                  <td style="text-align: right; padding: 6px; font-weight: 900; color: #0f172a;">₹${Number(invoice.taxableAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- Tax Summary -->
+            <div class="tax-box">
+              <div></div>
+              <div class="tax-breakdown">
+                <div class="tax-row">
+                  <span>Central Tax (CGST @ ${Number(invoice.gstRate || 18) / 2}%):</span>
+                  <span>₹${(Number(invoice.gstAmount || 0) / 2).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="tax-row">
+                  <span>State Tax (SGST @ ${Number(invoice.gstRate || 18) / 2}%):</span>
+                  <span>₹${(Number(invoice.gstAmount || 0) / 2).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="tax-row grand-total">
+                  <span>Invoice Total:</span>
+                  <span>₹${Number(invoice.grandTotal).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="words-box">
+              Amount Chargeable (in words): <span class="words-value">Rupees ${numberToWords(invoice.grandTotal)}</span>
+            </div>
+
+            <!-- Payment Summary Box -->
+            <div class="payment-summary-box">
+              <span style="color: ${isPaid ? '#10b981' : '#ef4444'};">
+                Amount Paid: ₹${Number(invoice.paidAmount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+              <span style="color: ${isPaid ? '#10b981' : '#ef4444'};">
+                Balance Due: ₹${Number(invoice.balanceDue || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <!-- Bank Details & Authorized Signatory -->
+            <div class="bank-details-box">
+              <div>
+                <span style="font-weight: 800; color: #101828; display: block; margin-bottom: 4px;">COMPANY'S BANK DETAILS:</span>
+                Bank Name: <strong>HDFC Bank</strong><br/>
+                A/c No: <strong>50200298754501</strong><br/>
+                Branch & IFSC: <strong>Vashi — HDFC0001234</strong>
+              </div>
+              <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; height: 50px;">
+                <span style="font-weight: 800; color: #101828;">For ${request.center?.centerName || 'Bhopal Head Office'}</span>
+                <span style="font-size: 8px; font-weight: bold; color: #64748b; font-style: italic;">AUTHORISED SIGNATORY</span>
+              </div>
+            </div>
+
+            <!-- Standard Declaration -->
+            <div class="declaration-box">
+              <strong style="color: #475569; display: block; margin-bottom: 2px;">Declaration:</strong>
+              We declare that this invoice shows the actual price of the goods or services described and that all particulars are true and correct.
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const { uri } = await Print.printToFileAsync({ html: htmlContent });
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `Download Bill ${invoice.invoiceNumber}`,
+        UTI: 'com.adobe.pdf',
+      });
+    } catch (e) {
+      console.error("Error generating/sharing bill PDF:", e);
+      alert("Failed to generate PDF bill.");
+    }
+  };
+
   const getFriendlyStatusText = () => {
     switch (status) {
       case 'requested': return 'Roadside Assistance Request logged';
@@ -129,7 +582,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     {
       id: 2,
       title: 'Assigned',
-      completed: isAssigned,
+      completed: currentStep >= 3,
       time: isAssigned ? formatTime(assignment?.createdAt) : '--:--',
       description: 'Technician and recovery van assigned to your location.',
       content: (
@@ -149,7 +602,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     {
       id: 3,
       title: 'Accepted',
-      completed: isAccepted,
+      completed: currentStep >= 4,
       time: isAccepted ? formatTime(assignment?.updatedAt) : '--:--',
       description: 'Recovery team accepted dispatch and preparing toolkit.',
       content: (
@@ -162,7 +615,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
                   style={styles.callContactButton}
                   onPress={() => handleCallTechnician(assignment.technician!.phone)}
                 >
-                  <Feather name="phone" size={12} color="#4d6a00" style={{ marginRight: 6 }} />
+                  <Feather name="phone" size={12} color="#ef4444" style={{ marginRight: 6 }} />
                   <Text style={styles.callContactText}>Call Technician</Text>
                 </TouchableOpacity>
               ) : null}
@@ -176,7 +629,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     {
       id: 4,
       title: 'Enroute',
-      completed: isEnroute,
+      completed: currentStep >= 5,
       time: isEnroute ? formatTime(request.enrouteAt || assignment?.updatedAt) : '--:--',
       description: 'Technician is travelling to your breakdown coordinates.',
       content: (
@@ -195,7 +648,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     {
       id: 5,
       title: 'Resolved',
-      completed: isResolved,
+      completed: currentStep >= 6,
       time: isResolved ? formatTime(request.resolvedAt) : '--:--',
       description: 'On-site repairs complete, vehicle recovered successfully.',
       content: (
@@ -211,13 +664,27 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     {
       id: 6,
       title: 'Billed',
-      completed: isBilled,
-      time: isBilled ? formatTime(request.updatedAt) : '--:--',
+      completed: currentStep >= 7,
+      time: isBilled ? formatTime(invoice?.invoiceDate || invoice?.createdAt) : '--:--',
       description: 'Service charges and diagnostic invoice logged.',
       content: (
         <View style={styles.stepDetails}>
-          {isBilled ? (
-            <Text style={styles.detailText}>RSA Invoice generated and synced to dashboard profile.</Text>
+          {loadingInvoice ? (
+            <ActivityIndicator size="small" color="#ef4444" style={{ alignSelf: 'flex-start' }} />
+          ) : invoice ? (
+            <>
+              <Text style={styles.detailText}>• Invoice No: {invoice.invoiceNumber}</Text>
+              <Text style={styles.detailText}>• Grand Total: ₹{parseFloat(String(invoice.grandTotal)).toLocaleString()}</Text>
+              <Text style={styles.detailText}>• Payment Status: {invoice.paymentStatus?.toUpperCase() || 'UNPAID'}</Text>
+              <TouchableOpacity
+                style={styles.downloadInvoiceBtn}
+                onPress={handleDownloadInvoice}
+                activeOpacity={0.8}
+              >
+                <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.downloadInvoiceBtnText}>Download Bill</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <Text style={styles.detailText}>Awaiting invoice processing...</Text>
           )}
@@ -226,6 +693,25 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
     },
     {
       id: 7,
+      title: 'Paid',
+      completed: currentStep >= 8,
+      time: isPaid ? formatTime(invoice?.paidAt || invoice?.updatedAt) : '--:--',
+      description: 'Service fee payment recorded and verified.',
+      content: (
+        <View style={styles.stepDetails}>
+          {isPaid ? (
+            <>
+              <Text style={styles.detailText}>• Payment Received: ₹{parseFloat(String(invoice?.grandTotal)).toLocaleString()}</Text>
+              <Text style={styles.detailText}>• Status: Payment Verified</Text>
+            </>
+          ) : (
+            <Text style={styles.detailText}>Awaiting payment registration...</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 8,
       title: 'Closed',
       completed: isClosed,
       time: isClosed ? formatTime(request.closedAt || request.updatedAt) : '--:--',
@@ -233,7 +719,19 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
       content: (
         <View style={styles.stepDetails}>
           {isClosed ? (
-            <Text style={styles.detailText}>This roadside recovery ticket is closed.</Text>
+            <>
+              <Text style={styles.detailText}>This roadside recovery ticket is closed.</Text>
+              {invoice ? (
+                <TouchableOpacity
+                  style={styles.downloadInvoiceBtn}
+                  onPress={handleDownloadInvoice}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.downloadInvoiceBtnText}>Download Bill</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
           ) : (
             <Text style={styles.detailText}>Awaiting final sign-off...</Text>
           )}
@@ -249,10 +747,27 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
         <TouchableOpacity style={styles.backButton} onPress={onBack}>
           <Feather name="arrow-left" size={20} color="#18181b" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Roadside Assist Tracker</Text>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.headerTitle}>Roadside Assist Tracker</Text>
+          <Text style={styles.headerSubtitle}>
+            {request.vehiclePlate || 'N/A'} — {request.issueType?.replace(/_/g, ' ').toUpperCase()}
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.syncHeaderBtn} 
+          onPress={handleSync} 
+          disabled={isSyncing}
+          activeOpacity={0.7}
+        >
+          {isSyncing ? (
+            <ActivityIndicator size="small" color="#ef4444" />
+          ) : (
+            <Feather name="rotate-cw" size={18} color="#ef4444" />
+          )}
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Status Summary Card */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryRow}>
@@ -274,12 +789,12 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${(Math.min(currentStep, 7) / 7) * 100}%` }
+                  { width: `${(Math.min(currentStep, 8) / 8) * 100}%` }
                 ]}
               />
             </View>
             <Text style={styles.progressPercentageText}>
-              Step {currentStep} of 7 • {Math.round((Math.min(currentStep, 7) / 7) * 100)}% Complete
+              Step {currentStep} of 8 • {Math.round((Math.min(currentStep, 8) / 8) * 100)}% Complete
             </Text>
           </View>
         </View>
@@ -396,11 +911,29 @@ const styles = StyleSheet.create({
     marginRight: 16,
     padding: 4,
   },
+  headerTitleContainer: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '800',
     color: '#18181b',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#71717a',
+    fontFamily: 'PlusJakartaSans-Medium',
+    marginTop: 2,
+  },
+  syncHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f4f4f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   scrollContent: {
     padding: 20,
@@ -440,7 +973,7 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Regular',
   },
   errorBackButton: {
-    backgroundColor: '#95d03a',
+    backgroundColor: '#ef4444',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -554,8 +1087,8 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   dotCompleted: {
-    backgroundColor: '#95d03a',
-    borderColor: '#95d03a',
+    backgroundColor: '#ef4444',
+    borderColor: '#ef4444',
   },
   dotActive: {
     backgroundColor: '#ffffff',
@@ -584,7 +1117,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   lineCompleted: {
-    backgroundColor: '#95d03a',
+    backgroundColor: '#ef4444',
   },
   stepRightColumn: {
     flex: 1,
@@ -646,9 +1179,9 @@ const styles = StyleSheet.create({
   callContactButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5fad2',
+    backgroundColor: '#fee2e2',
     borderWidth: 1,
-    borderColor: '#dcecc7',
+    borderColor: '#fca5a5',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -658,7 +1191,24 @@ const styles = StyleSheet.create({
   callContactText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#4d6a00',
+    color: '#ef4444',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  downloadInvoiceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    alignSelf: 'stretch',
+  },
+  downloadInvoiceBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
   },
 });

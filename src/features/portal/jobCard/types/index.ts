@@ -97,6 +97,17 @@ export interface Invoice {
   balanceDue: number;
   status: string;
   invoiceDate: string;
+  createdAt?: string;
+  updatedAt?: string;
+  paymentStatus?: string;
+  towingCharges?: number | string;
+  towingDistanceKm?: number;
+  gstRate?: number;
+  rsaJobCard?: any;
+  laborTotal?: number;
+  gstAmount?: number;
+  paidAmount?: number;
+  paidAt?: string;
 }
 
 export interface Estimate {
@@ -167,6 +178,14 @@ export interface RsaRequest {
     model?: {
       modelName: string;
     };
+  };
+  vehiclePlate?: string;
+  center?: {
+    centerId: string;
+    centerName: string;
+    centerCode: string;
+    address?: string;
+    gstin?: string;
   };
 }
 

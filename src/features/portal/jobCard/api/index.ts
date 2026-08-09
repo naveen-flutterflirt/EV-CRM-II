@@ -151,3 +151,17 @@ export async function approveJobCardEstimateApi(jobCardId: string, estimateId?: 
   
   return res.data?.data || res.data;
 }
+
+export async function fetchRsaInvoiceApi(requestId: string): Promise<Invoice | null> {
+  try {
+    const res = await api.get(`/rsa/invoices/request/${requestId}`);
+    const rawData = res.data?.data || res.data;
+    if (Array.isArray(rawData) && rawData.length > 0) return rawData[0];
+    if (rawData && Array.isArray(rawData.data) && rawData.data.length > 0) return rawData.data[0];
+    if (rawData && !Array.isArray(rawData) && typeof rawData === 'object') return rawData;
+    return null;
+  } catch (err) {
+    console.warn("Failed to fetch RSA invoice:", err);
+    return null;
+  }
+}

@@ -21,6 +21,7 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
         {hasActivities ? (
           displayActivities.map((item, index) => {
             const isLast = index === displayActivities.length - 1;
+            const isRsa = item.type?.startsWith('rsa_');
             const isCompleted = item.type === 'completed' || item.type === 'delivered' || item.type === 'closed';
 
             return (
@@ -32,15 +33,21 @@ export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ activiti
                 disabled={!onActivityPress}
               >
                 {/* Icon Circle */}
-                <View style={[styles.iconCircle, isCompleted ? styles.completedCircle : styles.otaCircle]}>
-                  <Text style={[styles.iconText, isCompleted ? styles.completedIconText : styles.otaIconText]}>
-                    {isCompleted ? '✓' : '⚡'}
+                <View style={[
+                  styles.iconCircle,
+                  isRsa ? styles.rsaCircle : (isCompleted ? styles.completedCircle : styles.otaCircle)
+                ]}>
+                  <Text style={[
+                    styles.iconText,
+                    isRsa ? styles.rsaIconText : (isCompleted ? styles.completedIconText : styles.otaIconText)
+                  ]}>
+                    {isRsa ? '🚨' : (isCompleted ? '✓' : '⚡')}
                   </Text>
                 </View>
 
                 {/* Text Info */}
                 <View style={styles.textContainer}>
-                  <Text style={styles.activityTitle}>{item.title}</Text>
+                  <Text style={[styles.activityTitle, isRsa && styles.rsaActivityTitle]}>{item.title}</Text>
                   <Text style={styles.activitySubtitle}>{item.subtitle}</Text>
                 </View>
 
@@ -102,6 +109,11 @@ const styles = StyleSheet.create({
   completedCircle: {
     backgroundColor: '#84cc16',
   },
+  rsaCircle: {
+    backgroundColor: '#fee2e2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
   otaCircle: {
     backgroundColor: '#f4f4f5',
   },
@@ -112,8 +124,14 @@ const styles = StyleSheet.create({
   completedIconText: {
     color: '#ffffff',
   },
+  rsaIconText: {
+    color: '#ef4444',
+  },
   otaIconText: {
     color: '#71717a',
+  },
+  rsaActivityTitle: {
+    color: '#ef4444',
   },
   textContainer: {
     flex: 1,

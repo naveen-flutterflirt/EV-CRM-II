@@ -8,7 +8,7 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
-import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments, useCustomerRsaRequests, RsaTrackerScreen, JobCard, useJobCardInspections, useJobCardInvoice, useJobCardParts, useJobCardEstimate } from '../../jobCard';
+import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments, useCustomerRsaRequests, RsaTrackerScreen, JobCard, useJobCardInspections, useJobCardInvoice, useJobCardParts, useJobCardEstimate, useRsaInvoice } from '../../jobCard';
 import { useCustomerVehicles, VehicleDetailsScreen, AddVehicleModal, VehicleSuccessModal } from '../../myVehicles';
 import { DeleteConfirmModal } from '../../../../common/components/DeleteConfirmModal';
 import {
@@ -435,35 +435,42 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
 
   const getActiveRsaRequest = () => {
     if (rsaRequests && rsaRequests.length > 0) {
-      const active = rsaRequests.find(r => r.status !== 'closed' && r.status !== 'cancelled' && r.status !== 'resolved');
-      if (active) return active;
-      if (rsaRequests[0].status !== 'closed' && rsaRequests[0].status !== 'cancelled') {
-        return rsaRequests[0];
-      }
+      // Find the first RSA request that is truly active (not closed, resolved, or cancelled)
+      const active = rsaRequests.find(r => {
+        const s = (r.status || '').toLowerCase();
+        const isClosed = Boolean(r.closedAt || r.isClosed || s === 'closed');
+        const isResolved = Boolean(r.resolvedAt || s === 'resolved' || s === 'towed');
+        const isCancelled = s === 'cancelled';
+        return !isClosed && !isResolved && !isCancelled;
+      });
+      return active || null;
     }
     return null;
   };
 
   const activeRsa = getActiveRsaRequest();
+  const { data: activeRsaInvoice } = useRsaInvoice(activeRsa?.requestId);
 
-  const getActiveRsaStepNum = (rsa: any) => {
+  const getActiveRsaStepNum = (rsa: any, invoice: any) => {
     if (!rsa) return 1;
     const s = (rsa.status || 'requested').toLowerCase();
     const hasAssign = rsa.assignments && rsa.assignments.length > 0;
-    const isAssigned = Boolean(hasAssign || ['assigned', 'en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(s));
-    const isAccepted = Boolean((hasAssign && rsa.assignments[0]?.status === 'accepted') || ['en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(s));
-    const isEnroute = Boolean(['en_route', 'on_site', 'job_card_created', 'resolved', 'billed', 'closed'].includes(s));
-    const isResolved = Boolean(['resolved', 'billed', 'closed'].includes(s));
-    const isBilled = Boolean(rsa.isBilled || s === 'closed');
-    const isClosed = Boolean(rsa.isClosed || s === 'closed');
+    const isAssigned = Boolean(hasAssign || ['assigned', 'en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(s));
+    const isAccepted = Boolean((hasAssign && rsa.assignments[0]?.status === 'accepted') || ['en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(s));
+    const isEnroute = Boolean(['en_route', 'on_site', 'resolved', 'towed', 'job_card_created', 'closed'].includes(s));
+    const isResolved = Boolean(rsa.resolvedAt || ['resolved', 'towed', 'closed'].includes(s));
+    const isBilled = Boolean(invoice || rsa.isBilled || s === 'closed');
+    const isPaid = Boolean(invoice && (invoice.status.toLowerCase() === 'paid' || invoice.paymentStatus?.toLowerCase() === 'paid'));
+    const isClosed = Boolean(rsa.closedAt || s === 'closed');
 
-    if (isClosed) return 7;
-    if (isBilled) return 6;
-    if (isResolved) return 5;
-    if (isEnroute) return 4;
-    if (isAccepted) return 3;
-    if (isAssigned) return 2;
-    return 1;
+    if (isClosed) return 8;
+    if (isPaid) return 8;
+    if (isBilled) return 7;
+    if (isResolved) return 6;
+    if (isEnroute) return 5;
+    if (isAccepted) return 4;
+    if (isAssigned) return 3;
+    return 2;
   };
 
   const renderTabContent = () => {
@@ -610,10 +617,10 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                 </View>
                 <View style={styles.progressContainer}>
                   <View style={styles.progressBarBg}>
-                    <View style={[styles.rsaProgressBarFill, { width: `${(getActiveRsaStepNum(activeRsa) / 7) * 100}%` }]} />
+                    <View style={[styles.rsaProgressBarFill, { width: `${(getActiveRsaStepNum(activeRsa, activeRsaInvoice) / 8) * 100}%` }]} />
                   </View>
                   <Text style={styles.progressText}>
-                    Step {getActiveRsaStepNum(activeRsa)} of 7 • {activeRsa.status.replace(/_/g, ' ').toUpperCase()}
+                    Step {getActiveRsaStepNum(activeRsa, activeRsaInvoice)} of 8 • {activeRsa.status.replace(/_/g, ' ').toUpperCase()}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -714,6 +721,12 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             <RecentActivityCard
               activities={dashboardData?.recentActivities}
               onActivityPress={(activity) => {
+                if (activity.type?.startsWith('rsa_')) {
+                  setActiveRsaRequestId(activity.id);
+                  setActiveTab('RSATRACKER');
+                  return;
+                }
+
                 // Find the job card matching this activity from the jobCards list
                 const foundJobCard = jobCards?.find(
                   (jc) => jc.jobCardId === activity.id || jc.jobNumber === activity.title.split(': ')[1]

@@ -12,8 +12,9 @@ import {
   createSosRequestApi,
   fetchJobCardEstimateApi,
   approveJobCardEstimateApi,
+  fetchRsaInvoiceApi,
 } from '../api';
-import { JobCard, Appointment, RsaRequest, Estimate } from '../types';
+import { JobCard, Appointment, RsaRequest, Estimate, Invoice } from '../types';
 
 const DEFAULT_STALE_TIME = 1000 * 60 * 2; // 2 minutes cache TTL
 
@@ -128,5 +129,14 @@ export function useApproveJobCardEstimate() {
       queryClient.invalidateQueries({ queryKey: ['portal', 'jobCardHistory', variables.jobCardId] });
       queryClient.invalidateQueries({ queryKey: ['portal', 'jobCardEstimate', variables.jobCardId] });
     },
+  });
+}
+
+export function useRsaInvoice(requestId?: string) {
+  return useQuery<Invoice | null>({
+    queryKey: ['portal', 'rsaInvoice', requestId],
+    queryFn: () => fetchRsaInvoiceApi(requestId || ''),
+    enabled: !!requestId,
+    staleTime: DEFAULT_STALE_TIME,
   });
 }
