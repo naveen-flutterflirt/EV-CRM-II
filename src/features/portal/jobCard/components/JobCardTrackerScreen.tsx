@@ -79,14 +79,15 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   const queryClient = useQueryClient();
   const jobCardId = jobCard?.jobCardId;
   const isMock = jobCardId === 'mock-jc-id';
-  const isVirtual = Boolean(jobCard?.isVirtual);
+  const isVirtual = Boolean(jobCard?.isVirtual || jobCard?.jobNumber === 'Pending Creation');
+  const realJobCardId = (isVirtual || isMock) ? undefined : jobCardId;
 
-  const { data: history, isLoading: loadingHistory, refetch: refetchHistory } = useJobCardHistory(jobCardId);
-  const { data: inspections, isLoading: loadingInspections, refetch: refetchInspections } = useJobCardInspections(jobCardId);
-  const { data: services, isLoading: loadingServices, refetch: refetchServices } = useJobCardServices(jobCardId);
-  const { data: parts, isLoading: loadingParts, refetch: refetchParts } = useJobCardParts(jobCardId);
-  const { data: invoice, isLoading: loadingInvoice, refetch: refetchInvoice } = useJobCardInvoice(jobCardId);
-  const { data: estimate, isLoading: loadingEstimate, refetch: refetchEstimate } = useJobCardEstimate(jobCardId);
+  const { data: history, isLoading: loadingHistory, refetch: refetchHistory } = useJobCardHistory(realJobCardId, !isVirtual && !isMock);
+  const { data: inspections, isLoading: loadingInspections, refetch: refetchInspections } = useJobCardInspections(realJobCardId, !isVirtual && !isMock);
+  const { data: services, isLoading: loadingServices, refetch: refetchServices } = useJobCardServices(realJobCardId, !isVirtual && !isMock);
+  const { data: parts, isLoading: loadingParts, refetch: refetchParts } = useJobCardParts(realJobCardId, !isVirtual && !isMock);
+  const { data: invoice, isLoading: loadingInvoice, refetch: refetchInvoice } = useJobCardInvoice(realJobCardId, !isVirtual && !isMock);
+  const { data: estimate, isLoading: loadingEstimate, refetch: refetchEstimate } = useJobCardEstimate(realJobCardId, !isVirtual && !isMock);
   const allInspectionsPassed = isMock 
     ? true 
     : (inspections && inspections.length > 0
@@ -195,9 +196,20 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   };
 
   const getStatusTimeFromHistory = (targetStatus: string): string => {
-    if (!history || history.length === 0) return '--:--';
-    const match = history.find((h: any) => h.newStatus.toLowerCase() === targetStatus.toLowerCase());
-    return match ? formatTime(match.changedAt) : '--:--';
+    if (isVirtual) {
+      if (['open', 'appointment_requested', 'appointment_initiated', 'requested', 'confirmed'].includes(targetStatus.toLowerCase())) {
+        return formatTime(jobCard?.appointment?.scheduledAt || jobCard?.openedAt);
+      }
+      return '--:--';
+    }
+    if (!history || history.length === 0) {
+      if (['open', 'created'].includes(targetStatus.toLowerCase())) {
+        return formatTime(jobCard?.openedAt);
+      }
+      return '--:--';
+    }
+    const match = history.find((h: any) => h.newStatus?.toLowerCase() === targetStatus.toLowerCase());
+    return match ? formatTime(match.changedAt) : (['open', 'created'].includes(targetStatus.toLowerCase()) ? formatTime(jobCard?.openedAt) : '--:--');
   };
 
   const getFriendlyJobCardStatusText = () => {
