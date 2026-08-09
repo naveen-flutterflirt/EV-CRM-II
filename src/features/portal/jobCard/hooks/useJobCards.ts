@@ -27,47 +27,47 @@ export function useActiveJobCard(customerId?: string) {
   });
 }
 
-export function useJobCardHistory(jobCardId?: string) {
+export function useJobCardHistory(jobCardId?: string, enabled = true) {
   return useQuery({
     queryKey: ['portal', 'jobCardHistory', jobCardId],
     queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
 
-export function useJobCardInspections(jobCardId?: string) {
+export function useJobCardInspections(jobCardId?: string, enabled = true) {
   return useQuery({
     queryKey: ['portal', 'jobCardInspections', jobCardId],
     queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
 
-export function useJobCardServices(jobCardId?: string) {
+export function useJobCardServices(jobCardId?: string, enabled = true) {
   return useQuery({
     queryKey: ['portal', 'jobCardServices', jobCardId],
     queryFn: () => fetchJobServicesApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
 
-export function useJobCardParts(jobCardId?: string) {
+export function useJobCardParts(jobCardId?: string, enabled = true) {
   return useQuery({
     queryKey: ['portal', 'jobCardParts', jobCardId],
     queryFn: () => fetchJobPartsApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
 
-export function useJobCardInvoice(jobCardId?: string) {
+export function useJobCardInvoice(jobCardId?: string, enabled = true) {
   return useQuery({
     queryKey: ['portal', 'jobCardInvoice', jobCardId],
     queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
@@ -110,11 +110,11 @@ export function useCreateSosRequest() {
   });
 }
 
-export function useJobCardEstimate(jobCardId?: string) {
+export function useJobCardEstimate(jobCardId?: string, enabled = true) {
   return useQuery<Estimate | null>({
     queryKey: ['portal', 'jobCardEstimate', jobCardId],
     queryFn: () => fetchJobCardEstimateApi(jobCardId || ''),
-    enabled: !!jobCardId,
+    enabled: Boolean(jobCardId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }
@@ -132,11 +132,11 @@ export function useApproveJobCardEstimate() {
   });
 }
 
-export function useRsaInvoice(requestId?: string) {
+export function useRsaInvoice(requestId?: string, enabled = true) {
   return useQuery<Invoice | null>({
     queryKey: ['portal', 'rsaInvoice', requestId],
     queryFn: () => fetchRsaInvoiceApi(requestId || ''),
-    enabled: !!requestId,
+    enabled: Boolean(requestId) && enabled,
     staleTime: DEFAULT_STALE_TIME,
   });
 }

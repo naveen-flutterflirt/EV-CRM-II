@@ -13,9 +13,15 @@ export async function fetchCustomerJobCardsApi(customerId: string): Promise<JobC
 }
 
 export async function fetchJobCardHistoryApi(jobCardId: string): Promise<JobStatusHistory[]> {
+  if (!jobCardId || jobCardId === 'mock-jc-id') return [];
   return fetchWithTtlCache(`job_card_history_${jobCardId}`, async () => {
-    const res = await api.get(`/job-cards/${jobCardId}/history`);
-    return res.data?.data || res.data || [];
+    try {
+      const res = await api.get(`/job-cards/${jobCardId}/history`);
+      return res.data?.data || res.data || [];
+    } catch (err: any) {
+      console.warn(`⚠️ Job Card History API (${jobCardId}) Not Found / Warning:`, err.message || err);
+      return [];
+    }
   }, 1000 * 60 * 5);
 }
 

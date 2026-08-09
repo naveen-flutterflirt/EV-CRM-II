@@ -21,12 +21,40 @@ import { VehicleCard } from '../src/features/portal/myVehicles/components/Vehicl
 import { LiveTrackingCard } from '../src/features/portal/liveTracking/components/LiveTrackingCard';
 import { DashboardStatsCard } from '../src/features/platform/dashboard/components/DashboardStatsCard';
 
+import { cookieStore } from '../src/common/services/cookieStore';
+import { getAuthMeCached } from '../src/common/services/authCache';
+
 export default function HomeScreen(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<'welcome' | 'login' | 'register' | 'email-verification' | 'setup-profile' | 'setup-vehicle' | 'onboarding-loading' | 'home' | 'forgot-password'>('welcome');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [pendingUser, setPendingUser] = useState<any>(null);
   const [registrationDraft, setRegistrationDraft] = useState<any>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
+
+  // Auto-redirect logged-in user on app launch / reload
+  React.useEffect(() => {
+    const token = cookieStore.get("token") || cookieStore.get("accessToken");
+    if (token) {
+      getAuthMeCached()
+        .then((res) => {
+          const user = res.data?.data || res.data;
+          if (user && (user.id || user.userId || user.customerId)) {
+            const role = (typeof user?.role === 'string'
+              ? user?.role
+              : user?.role?.roleCode || 'customer').toLowerCase();
+            if (role === 'customer') {
+              router.replace('/dashboard');
+            } else {
+              setCurrentUser(user);
+              setCurrentScreen('home');
+            }
+          }
+        })
+        .catch(() => {
+          // Token invalid/expired
+        });
+    }
+  }, []);
 
   const { data: vehicles, isLoading: loadingVehicles } = useCustomerVehicles({
     enabled: !!currentUser
