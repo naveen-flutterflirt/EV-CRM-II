@@ -944,6 +944,15 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
               <Text style={styles.detailsLabel}>GRAND TOTAL</Text>
               <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.grandTotal)).toLocaleString()}</Text>
+
+              <TouchableOpacity 
+                style={styles.downloadInvoiceBtn}
+                onPress={handleDownloadInvoice}
+                activeOpacity={0.8}
+              >
+                <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.downloadInvoiceBtnText}>Download Invoice</Text>
+              </TouchableOpacity>
             </>
           ) : isMock ? (
             <>
@@ -952,6 +961,15 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
               <Text style={styles.detailsLabel}>GRAND TOTAL</Text>
               <Text style={styles.detailsVal}>₹10,500</Text>
+
+              <TouchableOpacity 
+                style={styles.downloadInvoiceBtn}
+                onPress={() => alert("Mock invoice download")}
+                activeOpacity={0.8}
+              >
+                <Feather name="download" size={14} color="#ffffff" style={{ marginRight: 8 }} />
+                <Text style={styles.downloadInvoiceBtnText}>Download Invoice</Text>
+              </TouchableOpacity>
             </>
           ) : (
             <Text style={styles.emptyStepDetailsText}>Invoice not generated yet.</Text>
@@ -1020,7 +1038,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
             {jobCard.promisedAt ? formatDate(jobCard.promisedAt) : 'N/A'}
           </Text>
 
-          {invoice && (invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+          {invoice && (
             <TouchableOpacity 
               style={styles.downloadInvoiceBtn}
               onPress={handleDownloadInvoice}

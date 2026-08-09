@@ -251,7 +251,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
             }
             .invoice-box {
               width: 100%;
-              border: 2px solid #101828;
+              border: 1px solid #e2e8f0;
               padding: 20px;
               background: #fff;
               position: relative;
@@ -264,20 +264,20 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
               letter-spacing: 1px;
               margin-bottom: 20px;
               color: #0f172a;
-              border-bottom: 2px solid #101828;
+              border-bottom: 2px solid #f1f5f9;
               padding-bottom: 10px;
             }
             .grid {
               display: grid;
               grid-template-cols: 1fr 1fr;
-              border: 2px solid #101828;
+              border: 1px solid #e2e8f0;
               margin-bottom: 15px;
             }
             .grid-col {
               padding: 10px;
             }
             .grid-col-right {
-              border-left: 2px solid #101828;
+              border-left: 1px solid #e2e8f0;
               display: grid;
               grid-template-cols: 100px 1fr;
               gap: 5px;
@@ -310,14 +310,14 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
               width: 100%;
               border-collapse: collapse;
               margin-top: 15px;
-              border: 2px solid #101828;
+              border: 1px solid #e2e8f0;
             }
             th {
               background: #f8fafc;
               padding: 8px;
               font-weight: 900;
               font-size: 10px;
-              border-bottom: 2px solid #101828;
+              border-bottom: 2px solid #e2e8f0;
               border-right: 1px solid #e2e8f0;
             }
             tr {
@@ -333,7 +333,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
               margin-top: 15px;
             }
             .tax-breakdown {
-              border: 2px solid #101828;
+              border: 1px solid #e2e8f0;
               padding: 10px;
               background: #f8fafc;
               display: flex;
@@ -422,7 +422,7 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
                 </div>
                 <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: ${request.center?.gstin || '23AAACF1234A1Z1'}</div>
               </div>
-              <div class="grid-col-right">
+              <div class="grid-col-right" style="border-left: 1px solid #e2e8f0;">
                 <div class="grid-col" style="grid-column: span 2; display: grid; grid-template-cols: 100px 1fr; gap: 5px;">
                   <div class="metadata-label">Invoice No.</div>
                   <div class="metadata-value">${invoice.invoiceNumber}</div>
@@ -445,13 +445,15 @@ export const RsaTrackerScreen: React.FC<RsaTrackerScreenProps> = ({
                   ${request.breakdownAddress || 'Emergency Breakdown Location'}
                 </div>
               </div>
-              <div class="grid-col" style="border-left: 2px solid #101828; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
+              <div class="grid-col" style="border-left: 1px solid #e2e8f0; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
                 <div class="metadata-label">GSTIN/UIN:</div>
                 <div class="metadata-value">N/A</div>
                 <div class="metadata-label">State:</div>
                 <div class="metadata-value">Madhya Pradesh</div>
                 <div class="metadata-label">Phone:</div>
                 <div class="metadata-value">${request.customer?.phone || 'N/A'}</div>
+                <div class="metadata-label">Email:</div>
+                <div class="metadata-value">${request.customer?.email || 'N/A'}</div>
               </div>
             </div>
 

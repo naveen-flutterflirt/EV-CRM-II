@@ -169,6 +169,7 @@ export interface RsaRequest {
     firstName: string;
     lastName: string;
     phone: string;
+    email?: string;
   };
   vehicle?: {
     vehicleId: string;
