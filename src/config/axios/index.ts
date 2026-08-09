@@ -27,6 +27,10 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+import { router } from "expo-router";
+import { invalidateAuthMeCache } from "../../common/services/authCache";
+import { invalidateAllCache } from "../../common/services/apiCache";
+
 api.interceptors.response.use(
   (response) => {
     console.log(`✅ [API RESPONSE SUCCESS] ${response.config.method?.toUpperCase()} ${response.config.url} (${response.status})`);
@@ -52,7 +56,19 @@ api.interceptors.response.use(
     const isAuthRoute = error.config?.url?.includes("/auth/login") || error.config?.url?.includes("/auth/register");
     if (status === 401 && !isAuthRoute) {
       cookieStore.remove("token");
+      cookieStore.remove("accessToken");
       cookieStore.remove("userRole");
+      invalidateAuthMeCache();
+      invalidateAllCache();
+
+      // Automatically redirect unauthenticated user to Login page
+      try {
+        router.replace("/");
+      } catch (_e) {
+        if (typeof window !== "undefined" && window.location.pathname !== "/") {
+          window.location.href = "/";
+        }
+      }
     }
 
     if (error.response) {

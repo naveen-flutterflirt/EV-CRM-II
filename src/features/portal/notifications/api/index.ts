@@ -1,8 +1,12 @@
 import api from "../../../../config/axios";
+import { cookieStore } from "../../../../common/services/cookieStore";
 import { CustomerNotificationItem } from "../types";
 
 export async function fetchCustomerNotificationsApi(): Promise<CustomerNotificationItem[]> {
   try {
+    const token = cookieStore.get("token") || cookieStore.get("accessToken");
+    if (!token) return [];
+
     const res = await api.get("/notifications");
     const data = res.data?.data || res.data;
     if (Array.isArray(data)) {
