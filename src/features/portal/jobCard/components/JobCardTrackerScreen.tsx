@@ -1,49 +1,65 @@
 import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, Dimensions, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { useJobCardHistory, useJobCardInspections, useJobCardServices, useJobCardParts, useJobCardInvoice } from '../hooks/useJobCards';
+import { useJobCardHistory, useJobCardInspections, useJobCardServices, useJobCardParts, useJobCardInvoice, useJobCardEstimate } from '../hooks/useJobCards';
 import { JobCard } from '../types';
 
 const { width } = Dimensions.get('window');
 
 interface JobCardTrackerScreenProps {
-  jobCard?: JobCard;
+  jobCard?: JobCard & { isVirtual?: boolean };
   onBack: () => void;
   customerName?: string;
   customerPhone?: string;
   customerEmail?: string;
   customerLocation?: string;
+  onSync?: () => Promise<void>;
 }
 
-const getActiveStep = (status: string, jobCardId?: string, invoiceStatus?: string): number => {
-  if (jobCardId === '') return 1;
+const getActiveStep = (
+  status: string,
+  jobCardId?: string,
+  invoiceStatus?: string,
+  appointmentStatus?: string,
+  isVirtual?: boolean,
+  allInspectionsPassed?: boolean,
+  hasPartsAdded?: boolean,
+  isEstimateApproved?: boolean
+): number => {
+  if (!jobCardId || isVirtual) {
+    if (appointmentStatus === 'confirmed') {
+      return 3; // Job card created is pending
+    }
+    return 2; // Appointment confirmed is pending
+  }
   const s = status ? status.toLowerCase() : '';
   switch (s) {
     case 'open':
     case 'in_diagnosis':
-      return 2; // Inspection
+      return allInspectionsPassed ? (hasPartsAdded ? (isEstimateApproved ? 7 : 6) : 5) : 4; // Advance to Step 6 or 7 once completed
     case 'awaiting_parts':
-      return 4; // Parts
+      return hasPartsAdded ? (isEstimateApproved ? 7 : 6) : 5; // Advance to Step 6 or 7 once completed
     case 'awaiting_approval':
-      return 5; // Estimate
+      return isEstimateApproved ? 7 : 6; // Advance to Step 7 (Repairs in progress) once approved
     case 'in_progress':
     case 'quality_check':
-      return 6; // In Progress
+      return 7; // Repairs in progress
     case 'ready':
       if (invoiceStatus === 'paid') {
-        return 9; // Close
+        return 10; // Close
       }
-      if (invoiceStatus && invoiceStatus !== 'draft') {
-        return 8; // payment
+      if (invoiceStatus) {
+        return 9; // Payment
       }
-      return 7; // invoice
+      return 8; // Invoice
     case 'delivered':
     case 'closed':
-      return 10; // 10 means all 9 steps are complete
+      return 11; // All steps complete
     default:
-      return 3;
+      return 4;
   }
 };
 
@@ -54,24 +70,73 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   customerPhone,
   customerEmail,
   customerLocation,
+  onSync,
 }) => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
   const [inspectionModalVisible, setInspectionModalVisible] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
+  const queryClient = useQueryClient();
   const jobCardId = jobCard?.jobCardId;
   const isMock = jobCardId === 'mock-jc-id';
+  const isVirtual = Boolean(jobCard?.isVirtual);
 
-  const { data: history, isLoading: loadingHistory } = useJobCardHistory(jobCardId);
-  const { data: inspections, isLoading: loadingInspections } = useJobCardInspections(jobCardId);
-  const { data: services, isLoading: loadingServices } = useJobCardServices(jobCardId);
-  const { data: parts, isLoading: loadingParts } = useJobCardParts(jobCardId);
-  const { data: invoice, isLoading: loadingInvoice } = useJobCardInvoice(jobCardId);
+  const { data: history, isLoading: loadingHistory, refetch: refetchHistory } = useJobCardHistory(jobCardId);
+  const { data: inspections, isLoading: loadingInspections, refetch: refetchInspections } = useJobCardInspections(jobCardId);
+  const { data: services, isLoading: loadingServices, refetch: refetchServices } = useJobCardServices(jobCardId);
+  const { data: parts, isLoading: loadingParts, refetch: refetchParts } = useJobCardParts(jobCardId);
+  const { data: invoice, isLoading: loadingInvoice, refetch: refetchInvoice } = useJobCardInvoice(jobCardId);
+  const { data: estimate, isLoading: loadingEstimate, refetch: refetchEstimate } = useJobCardEstimate(jobCardId);
+  const allInspectionsPassed = isMock 
+    ? true 
+    : (inspections && inspections.length > 0
+        ? inspections.every((ins: any) => {
+            const r = String(ins.result).toLowerCase();
+            return r === 'pass' || r === 'passed';
+          })
+        : false);
+
+  const hasPartsAdded = isMock ? true : Boolean(parts && parts.length > 0);
+  const isEstimateApproved = isMock ? true : Boolean(estimate?.isApproved || (invoice && invoice.status !== 'draft') || ['in_progress', 'quality_check', 'ready', 'delivered', 'closed'].includes(jobCard?.status || ''));
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      if (onSync) {
+        await onSync();
+      }
+      await queryClient.invalidateQueries({ queryKey: ['portal', 'jobCards'] });
+      await Promise.all([
+        refetchHistory(),
+        refetchInspections(),
+        refetchServices(),
+        refetchParts(),
+        refetchInvoice(),
+        refetchEstimate()
+      ]);
+    } catch (err) {
+      console.error("Error syncing status:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (jobCard) {
-      setExpandedStep(getActiveStep(jobCard.status, jobCardId, invoice?.status));
+      setExpandedStep(
+        getActiveStep(
+          jobCard.status,
+          jobCardId,
+          invoice?.status,
+          jobCard.appointment?.status,
+          isVirtual,
+          allInspectionsPassed,
+          hasPartsAdded,
+          isEstimateApproved
+        )
+      );
     }
-  }, [jobCardId, jobCard?.status, invoice?.status]);
+  }, [jobCardId, jobCard?.status, invoice?.status, jobCard?.appointment?.status, isVirtual, allInspectionsPassed, hasPartsAdded, isEstimateApproved]);
 
   // If no job card is active, render a beautiful empty/not-found screen
   if (!jobCard) {
@@ -92,7 +157,16 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     );
   }
 
-  const currentStep = getActiveStep(jobCard.status, jobCardId, invoice?.status);
+  const currentStep = getActiveStep(
+    jobCard.status,
+    jobCardId,
+    invoice?.status,
+    jobCard.appointment?.status,
+    isVirtual,
+    allInspectionsPassed,
+    hasPartsAdded,
+    isEstimateApproved
+  );
 
   // Format dates cleanly
   const formatDate = (dateStr?: string) => {
@@ -349,7 +423,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               margin-top: 5px;
             }
             .words-box {
-              border: 1px solid #e2e8f0;
+              border: 2px solid #101828;
               padding: 8px;
               background: #f8fafc;
               margin-top: 15px;
@@ -359,29 +433,39 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               color: #0f172a;
               font-weight: 900;
             }
-            .declaration-box {
+            .payment-summary-box {
+              border: 2px solid #101828;
+              padding: 10px;
+              margin-top: 15px;
+              background-color: #f8fafc;
+              display: flex;
+              justify-content: space-between;
+              font-size: 11px;
+              font-weight: bold;
+            }
+            .bank-details-box {
+              border: 2px solid #101828;
+              padding: 10px;
+              margin-top: 15px;
               display: grid;
               grid-template-cols: 1fr 1fr;
-              border: 1px solid #e2e8f0;
-              margin-top: 20px;
-              font-size: 9px;
+              font-size: 10px;
             }
-            .sign-block {
-              text-align: center;
-              display: flex;
-              flex-direction: column;
-              justify-content: space-between;
-              height: 100px;
-              padding: 10px;
-              border-left: 1px solid #e2e8f0;
+            .declaration-box {
+              border: 2px solid #101828;
+              margin-top: 15px;
+              padding: 8px;
+              font-size: 8px;
+              color: #64748b;
+              line-height: 1.3;
             }
             .watermark {
               position: absolute;
               top: 35%;
               left: 30%;
               transform: rotate(-25deg);
-              border: 5px solid #10b981;
-              color: #10b981;
+              border: 5px solid ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};
+              color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};
               font-size: 40px;
               font-weight: 900;
               text-transform: uppercase;
@@ -394,19 +478,18 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
         </head>
         <body>
           <div class="invoice-box">
-            <div class="watermark">Paid</div>
+            <div class="watermark">${invoice.status.toLowerCase() === 'paid' ? 'Paid' : 'Unpaid'}</div>
             <div class="title">Tax Invoice</div>
 
             <!-- Vendor / Company Details -->
             <div class="grid">
               <div class="grid-col">
                 <div style="font-size: 13px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">FlutterFlirt EV & Mobility</div>
-                <div style="font-weight: bold; color: #1e293b;">${jobCard.center?.centerName || 'Service Center'}</div>
+                <div style="font-weight: bold; color: #1e293b;">${jobCard.center?.centerName || 'Bhopal Head Office'}</div>
                 <div style="color: #64748b; font-size: 9px; margin-top: 3px; line-height: 1.3;">
-                  Primary EV Workshop Center<br/>
-                  Vashi, Navi Mumbai, MH
+                  ${jobCard.center?.address || '123 Arera Colony, Bhopal, MP — 462016'}
                 </div>
-                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: 27AABCF1234M1Z5</div>
+                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: ${jobCard.center?.gstin || '23AAACF1234A1Z1'}</div>
               </div>
               <div class="grid-col-right" style="border-left: 1px solid #e2e8f0;">
                 <div class="grid-col" style="grid-column: span 2; display: grid; grid-template-cols: 100px 1fr; gap: 5px;">
@@ -489,17 +572,34 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               Amount Chargeable (in words): <span class="words-value">Rupees ${numberToWords(invoice.grandTotal)}</span>
             </div>
 
-            <!-- Signature & Declarations -->
+            <!-- Payment Summary Box -->
+            <div class="payment-summary-box">
+              <span style="color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};">
+                Amount Paid: ₹${invoice.amountPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+              <span style="color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};">
+                Balance Due: ₹${invoice.balanceDue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <!-- Bank Details & Authorized Signatory -->
+            <div class="bank-details-box">
+              <div>
+                <span style="font-weight: 800; color: #101828; display: block; margin-bottom: 4px;">COMPANY'S BANK DETAILS:</span>
+                Bank Name: <strong>HDFC Bank</strong><br/>
+                A/c No: <strong>50200298754501</strong><br/>
+                Branch & IFSC: <strong>Vashi — HDFC0001234</strong>
+              </div>
+              <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; height: 50px;">
+                <span style="font-weight: 800; color: #101828;">For ${jobCard.center?.centerName || 'Bhopal Head Office'}</span>
+                <span style="font-size: 8px; font-weight: bold; color: #64748b; font-style: italic;">AUTHORISED SIGNATORY</span>
+              </div>
+            </div>
+
+            <!-- Standard Declaration -->
             <div class="declaration-box">
-              <div class="grid-col" style="color: #94a3b8; font-size: 8px; line-height: 1.4;">
-                <span style="font-weight: 800; color: #475569; display: block; margin-bottom: 5px; text-transform: uppercase;">Declaration</span>
-                We declare that this invoice shows the actual price of the goods or services described and that all particulars are true and correct.
-              </div>
-              <div class="sign-block">
-                <span style="font-weight: 800; color: #475569; font-size: 8px;">for FlutterFlirt EV & Mobility</span>
-                <div style="border-bottom: 1px solid #cbd5e1; width: 80%; margin: 15px auto 5px auto;"></div>
-                <span style="font-weight: 800; color: #94a3b8; font-size: 8px; text-transform: uppercase;">Authorised Signatory</span>
-              </div>
+              <strong style="color: #475569; display: block; margin-bottom: 2px;">Declaration:</strong>
+              We declare that this invoice shows the actual price of the goods or services described and that all particulars are true and correct.
             </div>
           </div>
         </body>
@@ -521,8 +621,8 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
   const stepsData = [
     {
       id: 1,
-      title: 'Appointment confirmed',
-      description: 'Your service slot is scheduled and reserved.',
+      title: 'Appointment initiated',
+      description: 'Your service slot is requested and logged in CRM.',
       time: jobCard.appointment ? formatTime(jobCard.appointment.scheduledAt) : formatTime(jobCard.openedAt),
       completed: true,
       renderDetails: () => (
@@ -546,17 +646,50 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     },
     {
       id: 2,
-      title: 'Inspection',
-      description: 'Service advisor logging reported complaints & starting electronic diagnostics check.',
-      time: getStatusTimeFromHistory('in_diagnosis') !== '--:--' ? getStatusTimeFromHistory('in_diagnosis') : getStatusTimeFromHistory('open'),
+      title: 'Appointment confirmed',
+      description: 'Appointment approved and scheduled by branch supervisor.',
+      time: jobCard.appointment?.status === 'confirmed' ? formatTime(jobCard.appointment.scheduledAt) : '--:--',
       completed: currentStep >= 2,
       renderDetails: () => (
         <View style={styles.detailsBox}>
-          <Text style={styles.detailsLabel}>SERVICE ADVISOR</Text>
+          <Text style={styles.detailsLabel}>CONFIRMATION STATUS</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.appointment?.status === 'confirmed' || (jobCardId && !isVirtual)
+              ? 'Confirmed & Scheduled'
+              : 'Awaiting Branch Confirmation'}
+          </Text>
+        </View>
+      ),
+    },
+    {
+      id: 3,
+      title: 'Job card created',
+      description: 'Service job card opened and registered in ERP.',
+      time: getStatusTimeFromHistory('open') !== '--:--' ? getStatusTimeFromHistory('open') : formatTime(jobCard.openedAt),
+      completed: currentStep >= 3,
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>JOB CARD NUMBER</Text>
+          <Text style={styles.detailsVal}>{isVirtual ? 'Pending Creation' : jobCard.jobNumber}</Text>
+
+          <Text style={styles.detailsLabel}>OPENED AT</Text>
+          <Text style={styles.detailsVal}>{formatDate(jobCard.openedAt)}</Text>
+        </View>
+      ),
+    },
+    {
+      id: 4,
+      title: 'Inspection',
+      description: 'Service advisor logging reported complaints & diagnostics checklist.',
+      time: getStatusTimeFromHistory('in_diagnosis') !== '--:--' ? getStatusTimeFromHistory('in_diagnosis') : getStatusTimeFromHistory('open'),
+      completed: currentStep > 4 || (currentStep === 4 && allInspectionsPassed),
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>INSPECTED BY</Text>
           <Text style={styles.detailsVal}>
             {jobCard.serviceAdvisor 
               ? `${jobCard.serviceAdvisor.firstName} ${jobCard.serviceAdvisor.lastName}` 
-              : 'Not assigned'}
+              : 'Service Advisor'}
           </Text>
 
           <Text style={styles.detailsLabel}>REPORTED COMPLAINTS</Text>
@@ -566,16 +699,21 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
           {loadingInspections ? (
             <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
           ) : inspections && inspections.length > 0 && !isMock ? (
-            inspections.map((ins: any) => (
-              <View key={ins.inspectionId} style={styles.listItem}>
-                <Feather 
-                  name={ins.result === 'passed' ? 'check' : (ins.result === 'warning' ? 'alert-triangle' : 'x')} 
-                  size={13} 
-                  color={ins.result === 'passed' ? '#95d03a' : (ins.result === 'warning' ? '#eab308' : '#ef4444')} 
-                />
-                <Text style={styles.listItemText}>{ins.checkpoint} ({ins.result})</Text>
-              </View>
-            ))
+            inspections.map((ins: any) => {
+              const resLower = String(ins.result).toLowerCase();
+              const isPass = resLower === 'pass' || resLower === 'passed';
+              const isWarning = resLower === 'warning' || resLower === 'warn';
+              return (
+                <View key={ins.inspectionId} style={styles.listItem}>
+                  <Feather 
+                    name={isPass ? 'check' : (isWarning ? 'alert-triangle' : 'x')} 
+                    size={13} 
+                    color={isPass ? '#95d03a' : (isWarning ? '#eab308' : '#ef4444')} 
+                  />
+                  <Text style={styles.listItemText}>{ins.checkpoint} ({ins.result})</Text>
+                </View>
+              );
+            })
           ) : isMock ? (
             <>
               <View style={styles.listItem}>
@@ -598,11 +736,140 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       ),
     },
     {
-      id: 3,
-      title: 'Service',
-      description: 'Lead technician carrying out periodic maintenance checks.',
-      time: getStatusTimeFromHistory('in_progress'),
-      completed: currentStep >= 3,
+      id: 5,
+      title: 'Sourcing parts',
+      description: 'Sourcing and fitting required mechanical & electrical parts.',
+      time: getStatusTimeFromHistory('awaiting_parts'),
+      completed: currentStep > 5 || (currentStep === 5 && hasPartsAdded),
+      renderDetails: () => (
+        <View style={styles.detailsBox}>
+          <Text style={styles.detailsLabel}>PARTS ISSUED</Text>
+          {loadingParts ? (
+            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+          ) : parts && parts.length > 0 && !isMock ? (
+            parts.map((p: any) => (
+              <View key={p.jobPartId} style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>{p.partName} x {p.qty}</Text>
+              </View>
+            ))
+          ) : isMock ? (
+            <>
+              <View style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>Front Brake Pad Set x 1</Text>
+              </View>
+              <View style={styles.listItem}>
+                <Feather name="package" size={13} color="#71717a" />
+                <Text style={styles.listItemText}>Rear Brake Pad Set x 1</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyStepDetailsText}>No spare parts requested yet.</Text>
+          )}
+        </View>
+      ),
+    },
+    {
+      id: 6,
+      title: 'Estimate approval',
+      description: 'Workshop cost estimation awaiting ERP approval.',
+      time: getStatusTimeFromHistory('awaiting_approval'),
+      completed: currentStep > 6 || (currentStep === 6 && isEstimateApproved),
+      renderDetails: () => {
+        const partsSubtotal = parts
+          ? parts.reduce((acc: number, p: any) => acc + (p.qty * (p.unitPrice || 0)), 0)
+          : 0;
+
+        const labourSubtotal = services
+          ? services.reduce((acc: number, s: any) => acc + (s.labourCharge || 0), 0)
+          : 0;
+
+        const totalTax = (partsSubtotal + labourSubtotal) * 0.18;
+        const estimatedGrandTotal = partsSubtotal + labourSubtotal + totalTax;
+
+        return (
+          <View style={styles.detailsBox}>
+            {loadingInvoice || loadingEstimate || loadingServices || loadingParts ? (
+              <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
+            ) : (invoice || estimate) && !isMock ? (
+              <>
+                <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
+                <Text style={[styles.detailsVal, { color: isEstimateApproved ? '#4d6a00' : '#d97706', fontWeight: '800' }]}>
+                  {isEstimateApproved ? 'Approved' : 'Awaiting ERP Approval'}
+                </Text>
+
+                <Text style={styles.detailsLabel}>ESTIMATE BREAKDOWN</Text>
+                
+                {services && services.length > 0 && (
+                  <View style={{ marginVertical: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#71717a', marginBottom: 2 }}>Labour & Services:</Text>
+                    {services.map((s: any) => (
+                      <View key={s.jobServiceId} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 8, marginVertical: 1 }}>
+                        <Text style={{ fontSize: 12, color: '#27272a', flex: 1 }}>• {s.serviceName}</Text>
+                        <Text style={{ fontSize: 12, color: '#71717a', fontWeight: '600' }}>₹{parseFloat(String(s.labourCharge)).toLocaleString()}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {parts && parts.length > 0 && (
+                  <View style={{ marginVertical: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#71717a', marginBottom: 2 }}>Spare Parts:</Text>
+                    {parts.map((p: any) => (
+                      <View key={p.jobPartId} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingLeft: 8, marginVertical: 1 }}>
+                        <Text style={{ fontSize: 12, color: '#27272a', flex: 1 }}>• {p.partName} x {p.qty}</Text>
+                        <Text style={{ fontSize: 12, color: '#71717a', fontWeight: '600' }}>₹{parseFloat(String((p.qty * p.unitPrice))).toLocaleString()}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <View style={{ borderTopWidth: 1, borderTopColor: '#f4f4f5', marginTop: 8, paddingTop: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 2 }}>
+                    <Text style={{ fontSize: 12, color: '#71717a' }}>Taxable Amount:</Text>
+                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice?.taxableAmount || (partsSubtotal + labourSubtotal))).toLocaleString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 2 }}>
+                    <Text style={{ fontSize: 12, color: '#71717a' }}>Estimated GST (18%):</Text>
+                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice ? (invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount) : totalTax)).toLocaleString()}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 4 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#18181b' }}>Grand Total:</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#4d6a00' }}>₹{parseFloat(String(invoice?.grandTotal || estimatedGrandTotal)).toLocaleString()}</Text>
+                  </View>
+                </View>
+
+                {!isEstimateApproved && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#fde68a', marginTop: 14 }}>
+                    <Feather name="clock" size={14} color="#b45309" style={{ marginRight: 6 }} />
+                    <Text style={{ fontSize: 12, color: '#b45309', fontWeight: '700' }}>
+                      Awaiting estimate approval from ERP panel.
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : isMock ? (
+              <>
+                <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
+                <Text style={styles.detailsVal}>Approved</Text>
+
+                <Text style={styles.detailsLabel}>ESTIMATED AMOUNT</Text>
+                <Text style={styles.detailsVal}>₹10,500</Text>
+              </>
+            ) : (
+              <Text style={styles.emptyStepDetailsText}>Estimate details not available yet.</Text>
+            )}
+          </View>
+        );
+      },
+    },
+    {
+      id: 7,
+      title: 'Repairs in progress',
+      description: 'Active mechanical repairs, part fittings, and calibration in service bay.',
+      time: getStatusTimeFromHistory('quality_check') !== '--:--' ? getStatusTimeFromHistory('quality_check') : getStatusTimeFromHistory('in_progress'),
+      completed: currentStep >= 8,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>LEAD TECHNICIAN</Text>
@@ -610,6 +877,16 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
             {jobCard.leadTechnician 
               ? `${jobCard.leadTechnician.firstName} ${jobCard.leadTechnician.lastName}` 
               : 'Not assigned'}
+          </Text>
+
+          <Text style={styles.detailsLabel}>WORKSHOP STATUS</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.status === 'quality_check' ? 'Quality assurance checks in-progress' : 'Active repairs and service fitting'}
+          </Text>
+
+          <Text style={styles.detailsLabel}>SERVICE BAY</Text>
+          <Text style={styles.detailsVal}>
+            {jobCard.bay ? `Bay Code: ${jobCard.bay.bayCode} (${jobCard.bay.bayType || 'Service Bay'})` : 'Service Bay Area'}
           </Text>
 
           <Text style={styles.detailsLabel}>REPAIR ITEMS / SERVICES</Text>
@@ -648,100 +925,11 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       ),
     },
     {
-      id: 4,
-      title: 'Parts',
-      description: 'Sourcing and fitting required mechanical & electrical parts.',
-      time: getStatusTimeFromHistory('awaiting_parts'),
-      completed: currentStep >= 4,
-      renderDetails: () => (
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailsLabel}>PARTS ISSUED</Text>
-          {loadingParts ? (
-            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-          ) : parts && parts.length > 0 && !isMock ? (
-            parts.map((p: any) => (
-              <View key={p.jobPartId} style={styles.listItem}>
-                <Feather name="package" size={13} color="#71717a" />
-                <Text style={styles.listItemText}>{p.partName} x {p.qty}</Text>
-              </View>
-            ))
-          ) : isMock ? (
-            <>
-              <View style={styles.listItem}>
-                <Feather name="package" size={13} color="#71717a" />
-                <Text style={styles.listItemText}>Front Brake Pad Set x 1</Text>
-              </View>
-              <View style={styles.listItem}>
-                <Feather name="package" size={13} color="#71717a" />
-                <Text style={styles.listItemText}>Rear Brake Pad Set x 1</Text>
-              </View>
-            </>
-          ) : (
-            <Text style={styles.emptyStepDetailsText}>No spare parts requested yet.</Text>
-          )}
-        </View>
-      ),
-    },
-    {
-      id: 5,
-      title: 'Estimate',
-      description: 'Workshop cost estimation awaiting customer approval.',
-      time: getStatusTimeFromHistory('awaiting_approval'),
-      completed: currentStep >= 5,
-      renderDetails: () => (
-        <View style={styles.detailsBox}>
-          {loadingInvoice ? (
-            <ActivityIndicator size="small" color="#95d03a" style={{ alignSelf: 'flex-start', marginVertical: 4 }} />
-          ) : invoice && !isMock ? (
-            <>
-              <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
-              <Text style={styles.detailsVal}>
-                {invoice.status === 'draft' || jobCard.status === 'awaiting_approval' ? 'Awaiting Customer Approval' : 'Approved'}
-              </Text>
-
-              <Text style={styles.detailsLabel}>ESTIMATED AMOUNT</Text>
-              <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.grandTotal)).toLocaleString()}</Text>
-            </>
-          ) : isMock ? (
-            <>
-              <Text style={styles.detailsLabel}>ESTIMATE STATUS</Text>
-              <Text style={styles.detailsVal}>Approved</Text>
-
-              <Text style={styles.detailsLabel}>ESTIMATED AMOUNT</Text>
-              <Text style={styles.detailsVal}>₹10,500</Text>
-            </>
-          ) : (
-            <Text style={styles.emptyStepDetailsText}>Estimate details not available yet.</Text>
-          )}
-        </View>
-      ),
-    },
-    {
-      id: 6,
-      title: 'In Progress',
-      description: 'Active mechanical repairs, part fittings, and calibration in service bay.',
-      time: getStatusTimeFromHistory('quality_check') !== '--:--' ? getStatusTimeFromHistory('quality_check') : getStatusTimeFromHistory('in_progress'),
-      completed: currentStep >= 6,
-      renderDetails: () => (
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailsLabel}>WORKSHOP STATUS</Text>
-          <Text style={styles.detailsVal}>
-            {jobCard.status === 'quality_check' ? 'Quality assurance checks in-progress' : 'Active repairs and service fitting'}
-          </Text>
-
-          <Text style={styles.detailsLabel}>SERVICE BAY</Text>
-          <Text style={styles.detailsVal}>
-            {jobCard.bay ? `Bay Code: ${jobCard.bay.bayCode} (${jobCard.bay.bayType || 'Service Bay'})` : 'Service Bay Area'}
-          </Text>
-        </View>
-      ),
-    },
-    {
-      id: 7,
-      title: 'Invoice',
+      id: 8,
+      title: 'Invoice compiled',
       description: 'Tax invoice compiled and finalized for completed tasks.',
       time: getStatusTimeFromHistory('ready'),
-      completed: currentStep >= 7,
+      completed: currentStep >= 9,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {loadingInvoice ? (
@@ -772,11 +960,11 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       ),
     },
     {
-      id: 8,
-      title: 'Payment',
+      id: 9,
+      title: 'Payment completed',
       description: 'Payment verification and checkout processing.',
       time: invoice?.status === 'paid' ? formatTime(invoice.invoiceDate) : '--:--',
-      completed: currentStep >= 8,
+      completed: currentStep >= 10,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           {loadingInvoice ? (
@@ -789,7 +977,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               <Text style={styles.detailsLabel}>AMOUNT PAID</Text>
               <Text style={styles.detailsVal}>₹{parseFloat(String(invoice.amountPaid)).toLocaleString()}</Text>
 
-              {(invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+              {invoice && (
                 <TouchableOpacity 
                   style={styles.downloadInvoiceBtn}
                   onPress={handleDownloadInvoice}
@@ -815,11 +1003,11 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       ),
     },
     {
-      id: 9,
-      title: 'Close',
+      id: 10,
+      title: 'Vehicle delivery / Close',
       description: 'Final quality audit complete and vehicle delivered.',
       time: jobCard.closedAt ? formatTime(jobCard.closedAt) : getStatusTimeFromHistory('delivered'),
-      completed: currentStep >= 9,
+      completed: currentStep >= 11,
       renderDetails: () => (
         <View style={styles.detailsBox}>
           <Text style={styles.detailsLabel}>VEHICLE DELIVERY</Text>
@@ -860,6 +1048,18 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
             {jobCard.vehicle ? `${jobCard.vehicle.registrationNo}` : 'Ather 450X'} — {jobCard.jobType === 'scheduled_maintenance' ? 'Periodic Maintenance' : jobCard.jobType}
           </Text>
         </View>
+        <TouchableOpacity 
+          style={styles.syncHeaderBtn} 
+          onPress={handleSync} 
+          disabled={isSyncing}
+          activeOpacity={0.7}
+        >
+          {isSyncing ? (
+            <ActivityIndicator size="small" color="#4d6a00" />
+          ) : (
+            <Feather name="rotate-cw" size={18} color="#4d6a00" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -872,9 +1072,13 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
             <View style={styles.summaryTextContainer}>
               <Text style={styles.summaryLabel}>WORKSHOP REPAIRS & MAINTENANCE</Text>
               <Text style={styles.summaryNumber}>
-                {jobCard.jobNumber}
+                {isVirtual ? 'Pending Creation' : jobCard.jobNumber}
               </Text>
-              <Text style={styles.summaryStatusText}>{getFriendlyJobCardStatusText()}</Text>
+              <Text style={styles.summaryStatusText}>
+                {isVirtual 
+                  ? (jobCard.appointment?.status === 'confirmed' ? 'Appointment Confirmed & Scheduled' : 'Appointment Initiated')
+                  : getFriendlyJobCardStatusText()}
+              </Text>
             </View>
           </View>
 
@@ -884,17 +1088,17 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               <View
                 style={[
                   styles.progressBarFill,
-                  { width: `${(Math.min(currentStep, 9) / 9) * 100}%` }
+                  { width: `${(Math.min(currentStep, 10) / 10) * 100}%` }
                 ]}
               />
             </View>
             <Text style={styles.progressPercentageText}>
-              Step {currentStep === 10 ? 9 : currentStep} of 9 • {Math.round((Math.min(currentStep, 9) / 9) * 100)}% Complete
+              Step {currentStep === 11 ? 10 : currentStep} of 10 • {Math.round((Math.min(currentStep, 10) / 10) * 100)}% Complete
             </Text>
           </View>
 
-          {/* Persistent Download button on Summary Card if paid / completed */}
-          {invoice && (invoice.status.toLowerCase() === 'paid' || jobCard.status.toLowerCase() === 'delivered' || jobCard.status.toLowerCase() === 'closed') && (
+          {/* Persistent Download button on Summary Card if invoice exists */}
+          {invoice && (
             <TouchableOpacity 
               style={[styles.downloadInvoiceBtn, { marginTop: 16, width: '100%', alignSelf: 'stretch' }]}
               onPress={handleDownloadInvoice}
@@ -911,7 +1115,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
         <View style={styles.stepperContainer}>
           {stepsData.map((step, index) => {
-            const isActive = currentStep === 10 ? false : step.id === currentStep;
+            const isActive = currentStep === 11 ? false : step.id === currentStep;
             const isCompleted = step.completed && !isActive;
             const isPending = !step.completed;
             const isExpanded = expandedStep === step.id;
@@ -1038,21 +1242,25 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               <Text style={styles.notesSectionHeading}>Checkpoints & Notes</Text>
               
               {inspections && inspections.length > 0 && !isMock ? (
-                inspections.map((ins: any) => (
-                  <View key={ins.inspectionId} style={styles.noteRow}>
-                    <View style={styles.noteStatusCol}>
-                      <Feather 
-                        name={ins.result === 'passed' ? 'check-circle' : 'alert-circle'} 
-                        size={18} 
-                        color={ins.result === 'passed' ? '#95d03a' : '#ef4444'} 
-                      />
+                inspections.map((ins: any) => {
+                  const resLower = String(ins.result).toLowerCase();
+                  const isPass = resLower === 'pass' || resLower === 'passed';
+                  return (
+                    <View key={ins.inspectionId} style={styles.noteRow}>
+                      <View style={styles.noteStatusCol}>
+                        <Feather 
+                          name={isPass ? 'check-circle' : 'alert-circle'} 
+                          size={18} 
+                          color={isPass ? '#95d03a' : '#ef4444'} 
+                        />
+                      </View>
+                      <View style={styles.noteTextCol}>
+                        <Text style={styles.noteCheckpoint}>{ins.checkpoint}</Text>
+                        <Text style={styles.noteText}>{ins.notes || 'No comments logged.'}</Text>
+                      </View>
                     </View>
-                    <View style={styles.noteTextCol}>
-                      <Text style={styles.noteCheckpoint}>{ins.checkpoint}</Text>
-                      <Text style={styles.noteText}>{ins.notes || 'No comments logged.'}</Text>
-                    </View>
-                  </View>
-                ))
+                  );
+                })
               ) : isMock ? (
                 <>
                   <View style={styles.noteRow}>
@@ -1121,6 +1329,15 @@ const styles = StyleSheet.create({
   backButton: {
     marginRight: 16,
     padding: 4,
+  },
+  syncHeaderBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#f4f4f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   headerTitleContainer: {
     flex: 1,
@@ -1576,6 +1793,27 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700',
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+  approveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4d6a00',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    shadowColor: '#4d6a00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    alignSelf: 'stretch',
+  },
+  approveBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
     fontFamily: 'PlusJakartaSans-Bold',
   },
 });

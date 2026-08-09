@@ -99,7 +99,7 @@ export async function fetchCustomerDashboardApi(forceRefresh = false): Promise<C
       console.error("❌ Customer Dashboard API Error:", errorMsg);
       throw new Error(errorMsg);
     }
-  }, 180000, forceRefresh);
+  }, 5000, forceRefresh);
 }
 
 function formatRecentActivityDate(dateStr?: string): string {

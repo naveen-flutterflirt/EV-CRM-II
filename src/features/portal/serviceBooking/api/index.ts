@@ -74,8 +74,9 @@ export async function fetchCrmCustomersApi(): Promise<CustomerSelect[]> {
   }));
 }
 
-export async function fetchCrmVehiclesApi(): Promise<VehicleSelect[]> {
-  const res = await api.get("/vehicles");
+export async function fetchCrmVehiclesApi(customerId?: string): Promise<VehicleSelect[]> {
+  const url = customerId ? `/vehicles?customerId=${customerId}` : "/vehicles";
+  const res = await api.get(url);
   const rawData = res.data?.data || res.data;
   const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
   return list.map((v: any) => {

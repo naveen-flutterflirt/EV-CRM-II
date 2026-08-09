@@ -53,15 +53,7 @@ const JOB_TYPES = [
   { label: 'Roadside Assist', value: 'roadside_assist' },
 ];
 
-const STATUSES = [
-  { label: 'Requested', value: 'requested' },
-  { label: 'Confirmed', value: 'confirmed' },
-  { label: 'Rescheduled', value: 'rescheduled' },
-  { label: 'Checked In', value: 'checked_in' },
-  { label: 'No-Show', value: 'no_show' },
-  { label: 'Cancelled', value: 'cancelled' },
-  { label: 'Completed', value: 'completed' },
-];
+
 
 // ======================== DROPDOWN SELECT MODAL COMPONENT ========================
 
@@ -233,7 +225,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const [assignedBayId, setAssignedBayId] = useState<string | null>(null);
   const [assignedBayName, setAssignedBayName] = useState('Unassigned');
   
-  const [status, setStatus] = useState('requested');
+
 
   // Dynamic API State lists
   const [statesList, setStatesList] = useState<StateItem[]>([]);
@@ -319,7 +311,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const loadVehicles = async () => {
       setLoadingVehicles(true);
       try {
-        const vehicles = await fetchCrmVehiclesApi();
+        const vehicles = await fetchCrmVehiclesApi(selectedCustomerId);
         if (vehicles && vehicles.length > 0) {
           setVehiclesList(vehicles);
         } else {
@@ -499,7 +491,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
       channel,
       assignedBay: assignedBayName,
       assignedBayId,
-      status,
+      status: 'requested',
       notes: notes.trim(),
     };
 
@@ -596,14 +588,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             onSelect={(val) => setJobType(val)}
           />
 
-          {/* Status */}
-          <SelectorField
-            label="Status"
-            valueLabel={STATUSES.find(s => s.value === status)?.label || 'Requested'}
-            placeholder="Select Status..."
-            options={STATUSES}
-            onSelect={(val) => setStatus(val)}
-          />
+
 
 
           {/* Complaint / Notes */}

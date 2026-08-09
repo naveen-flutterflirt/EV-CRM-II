@@ -3,11 +3,13 @@ export interface JobCard {
   jobNumber: string;
   customerId: string;
   vehicleId: string;
+  isVirtual?: boolean;
   appointmentId?: string;
   appointment?: {
     appointmentId: string;
     apptNumber: string;
     scheduledAt: string;
+    status?: string;
   };
   bay?: {
     bayId: string;
@@ -37,6 +39,8 @@ export interface JobCard {
     centerId: string;
     centerName: string;
     centerCode: string;
+    address?: string;
+    gstin?: string;
   };
   vehicle?: {
     vehicleId: string;
@@ -90,8 +94,18 @@ export interface Invoice {
   discountAmount: number;
   grandTotal: number;
   amountPaid: number;
+  balanceDue: number;
   status: string;
   invoiceDate: string;
+}
+
+export interface Estimate {
+  estimateId: string;
+  id?: string;
+  jobCardId: string;
+  isApproved?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Appointment {
@@ -107,6 +121,8 @@ export interface Appointment {
     centerId: string;
     centerName: string;
     centerCode: string;
+    address?: string;
+    gstin?: string;
   };
   vehicle?: {
     vehicleId: string;

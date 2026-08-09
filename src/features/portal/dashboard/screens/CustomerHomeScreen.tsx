@@ -8,7 +8,7 @@ import { QuickActionsGrid } from '../components/QuickActionsGrid';
 import { RecentActivityCard } from '../components/RecentActivityCard';
 import { BatteryRangeCard } from '../components/BatteryRangeCard';
 import { ServiceBookingFlow } from '../../serviceBooking';
-import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments, useCustomerRsaRequests, RsaTrackerScreen, JobCard } from '../../jobCard';
+import { JobCardTrackerScreen, NoActiveJobCardCard, useActiveJobCard, useCustomerAppointments, useCustomerRsaRequests, RsaTrackerScreen, JobCard, useJobCardInspections, useJobCardInvoice, useJobCardParts, useJobCardEstimate } from '../../jobCard';
 import { useCustomerVehicles, VehicleDetailsScreen, AddVehicleModal, VehicleSuccessModal } from '../../myVehicles';
 import { DeleteConfirmModal } from '../../../../common/components/DeleteConfirmModal';
 import {
@@ -34,30 +34,76 @@ import {
   CustomerNotificationItem,
 } from '../../notifications';
 
-const getJobCardProgress = (status: string) => {
+const getJobCardProgress = (status: string, inspections?: any[], invoice?: any, parts?: any[], estimate?: any) => {
   const s = status ? status.toLowerCase() : '';
-  switch (s) {
-    case 'open':
-    case 'reopened':
-      return { step: 1, totalSteps: 8, text: 'Job Card Opened', percent: 12.5 };
-    case 'in_diagnosis':
-      return { step: 2, totalSteps: 8, text: 'Vehicle Diagnostics', percent: 25 };
-    case 'awaiting_approval':
-      return { step: 3, totalSteps: 8, text: 'Awaiting Estimate Approval', percent: 37.5 };
-    case 'awaiting_parts':
-      return { step: 4, totalSteps: 8, text: 'Awaiting Spare Parts', percent: 50 };
-    case 'in_progress':
-      return { step: 5, totalSteps: 8, text: 'Repairs in Progress', percent: 62.5 };
-    case 'quality_check':
-      return { step: 6, totalSteps: 8, text: 'Quality QA Inspection', percent: 75 };
-    case 'ready':
-      return { step: 7, totalSteps: 8, text: 'Ready for Collection', percent: 87.5 };
-    case 'delivered':
-    case 'closed':
-      return { step: 8, totalSteps: 8, text: 'Delivered', percent: 100 };
-    default:
-      return { step: 5, totalSteps: 8, text: 'Service in Progress', percent: 62.5 };
-  }
+  
+  const allInspectionsPassed = inspections && inspections.length > 0
+    ? inspections.every((ins: any) => {
+        const r = String(ins.result).toLowerCase();
+        return r === 'pass' || r === 'passed';
+      })
+    : false;
+
+  const hasPartsAdded = parts && parts.length > 0;
+  const isEstimateApproved = estimate?.isApproved || (invoice && invoice.status !== 'draft') || ['in_progress', 'quality_check', 'ready', 'delivered', 'closed'].includes(s);
+  const invoiceStatus = invoice?.status;
+
+  const getStepNum = (): number => {
+    switch (s) {
+      case 'open':
+      case 'in_diagnosis':
+        return allInspectionsPassed ? (hasPartsAdded ? (isEstimateApproved ? 7 : 6) : 5) : 4;
+      case 'awaiting_parts':
+        return hasPartsAdded ? (isEstimateApproved ? 7 : 6) : 5;
+      case 'awaiting_approval':
+        return 6;
+      case 'in_progress':
+      case 'quality_check':
+        return 7;
+      case 'ready':
+        if (invoiceStatus === 'paid') {
+          return 10;
+        }
+        if (invoiceStatus && invoiceStatus !== 'draft') {
+          return 9;
+        }
+        return 8;
+      case 'delivered':
+      case 'closed':
+        return 10;
+      default:
+        return 4;
+    }
+  };
+
+  const step = getStepNum();
+  const totalSteps = 10;
+  const percent = Math.round((step / 10) * 100);
+
+  const getStepText = () => {
+    switch (step) {
+      case 3:
+        return 'Job Card Created';
+      case 4:
+        return 'Vehicle Diagnostics';
+      case 5:
+        return 'Awaiting Spare Parts';
+      case 6:
+        return 'Awaiting Estimate Approval';
+      case 7:
+        return 'Repairs in Progress';
+      case 8:
+        return 'Invoice Compiled';
+      case 9:
+        return 'Ready for Collection';
+      case 10:
+        return 'Delivered';
+      default:
+        return 'Service in Progress';
+    }
+  };
+
+  return { step, totalSteps, text: getStepText(), percent };
 };
 
 interface ProfileTabFlowProps {
@@ -290,6 +336,15 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
   const { data: appointments } = useCustomerAppointments(customerId);
   const { data: rsaRequests } = useCustomerRsaRequests(customerId);
 
+  const activeJC = jobCards && jobCards.length > 0
+    ? jobCards.find(jc => jc.status !== 'delivered' && jc.status !== 'cancelled')
+    : null;
+
+  const { data: inspections } = useJobCardInspections(activeJC?.jobCardId);
+  const { data: invoice } = useJobCardInvoice(activeJC?.jobCardId);
+  const { data: parts } = useJobCardParts(activeJC?.jobCardId);
+  const { data: estimate } = useJobCardEstimate(activeJC?.jobCardId);
+
   const handleAddVehicle = async (payload: any) => {
     await addVehicle(payload);
     setShowAddVehicleModal(false);
@@ -327,46 +382,56 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     handleLogout();
   };
 
-  // Find active job card or fallback to virtual job card from active appointment
-  const getActiveJobCardOrVirtual = () => {
+  // Find active job card that has actually been created in ERP
+  const getActiveJobCard = () => {
     if (jobCards && jobCards.length > 0) {
       const activeJC = jobCards.find(jc => jc.status !== 'delivered' && jc.status !== 'cancelled');
       if (activeJC) return activeJC;
     }
+    return null;
+  };
 
+  const getActiveAppointment = () => {
     if (appointments && appointments.length > 0) {
-      const activeAppt = appointments.find(appt => 
+      return appointments.find(appt => 
         appt.status === 'confirmed' || 
         appt.status === 'requested' || 
         appt.status === 'rescheduled' || 
         appt.status === 'checked_in'
       );
-      if (activeAppt) {
-        return {
-          jobCardId: activeAppt.appointmentId || '',
-          jobNumber: activeAppt.apptNumber,
-          customerId: activeAppt.customerId,
-          vehicleId: activeAppt.vehicleId,
-          appointmentId: activeAppt.appointmentId,
-          appointment: {
-            appointmentId: activeAppt.appointmentId,
-            apptNumber: activeAppt.apptNumber,
-            scheduledAt: activeAppt.scheduledAt,
-          },
-          status: 'open' as const,
-          jobType: activeAppt.jobType,
-          priority: 'normal' as const,
-          openedAt: activeAppt.scheduledAt,
-          center: activeAppt.center,
-          vehicle: activeAppt.vehicle,
-        };
-      }
     }
-
     return null;
   };
 
-  const activeJobCard = getActiveJobCardOrVirtual();
+  const activeJobCard = getActiveJobCard();
+  const activeAppt = getActiveAppointment();
+
+  const virtualJobCard = activeAppt ? {
+    jobCardId: activeAppt.appointmentId || '',
+    jobNumber: activeAppt.apptNumber,
+    customerId: activeAppt.customerId,
+    vehicleId: activeAppt.vehicleId,
+    appointmentId: activeAppt.appointmentId,
+    appointment: {
+      appointmentId: activeAppt.appointmentId,
+      apptNumber: activeAppt.apptNumber,
+      scheduledAt: activeAppt.scheduledAt,
+      status: activeAppt.status,
+    },
+    status: 'open' as const,
+    jobType: activeAppt.jobType,
+    priority: 'normal' as const,
+    openedAt: activeAppt.scheduledAt,
+    center: activeAppt.center,
+    vehicle: activeAppt.vehicle,
+    isVirtual: true,
+  } : null;
+
+  useEffect(() => {
+    if (selectedJobCard?.isVirtual && activeJobCard) {
+      setSelectedJobCard(activeJobCard);
+    }
+  }, [selectedJobCard, activeJobCard]);
 
   const getActiveRsaRequest = () => {
     if (rsaRequests && rsaRequests.length > 0) {
@@ -406,7 +471,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
       case 'JOBCARD':
         return (
           <JobCardTrackerScreen
-            jobCard={selectedJobCard || activeJobCard || undefined}
+            jobCard={selectedJobCard || activeJobCard || (virtualJobCard as any) || undefined}
             onBack={() => {
               setSelectedJobCard(null);
               setActiveTab('HOME');
@@ -415,6 +480,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
             customerPhone={dashboardData?.user?.phone}
             customerEmail={dashboardData?.user?.email}
             customerLocation={dashboardData?.user?.location}
+            onSync={async () => {
+              await refreshDashboard();
+            }}
           />
         );
       case 'LIVETRACKING':
@@ -551,9 +619,9 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               </TouchableOpacity>
             ) : null}
 
-            {/* 3. Job Card Status Summary or No Active Job Card Empty State */}
+            {/* 3. Job Card Status Summary or Upcoming Appointment or Empty State */}
             {activeJobCard ? (() => {
-              const progress = getJobCardProgress(activeJobCard.status);
+              const progress = getJobCardProgress(activeJobCard.status, inspections, invoice, parts, estimate);
               return (
                 <TouchableOpacity 
                   style={styles.jobTrackingCard}
@@ -588,9 +656,45 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                   </View>
                 </TouchableOpacity>
               );
+            })() : (activeAppt ? (() => {
+              const isConfirmed = activeAppt.status === 'confirmed';
+              return (
+                <TouchableOpacity 
+                  style={styles.jobTrackingCard}
+                  onPress={() => {
+                    setSelectedJobCard(virtualJobCard as any);
+                    setActiveTab('JOBCARD');
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.jobCardHeaderRow}>
+                    <View style={styles.calendarIconBg}>
+                      <Feather name="calendar" size={18} color="#0f766e" />
+                    </View>
+                    <View style={styles.jobCardTextContainer}>
+                      <Text style={[styles.jobCardLabel, { color: '#0f766e' }]}>UPCOMING APPOINTMENT</Text>
+                      <Text style={styles.jobCardTitle}>
+                        {activeAppt.apptNumber}
+                      </Text>
+                      <Text style={styles.jobCardDesc}>
+                        Status: {isConfirmed ? 'Confirmed & Scheduled' : 'Initiated (Awaiting Confirmation)'}
+                      </Text>
+                    </View>
+                    <Feather name="chevron-right" size={20} color="#71717a" />
+                  </View>
+                  <View style={styles.progressContainer}>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { backgroundColor: '#0f766e', width: `${isConfirmed ? 20 : 10}%` }]} />
+                    </View>
+                    <Text style={styles.progressText}>
+                      Step {isConfirmed ? 2 : 1} of 10 • {isConfirmed ? 'Appointment Confirmed' : 'Appointment Initiated'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
             })() : (!activeRsa ? (
               <NoActiveJobCardCard onBookServicePress={() => setActiveTab('BOOK')} />
-            ) : null)}
+            ) : null))}
 
             {/* 2. Quick Actions Grid */}
             <QuickActionsGrid
@@ -724,6 +828,15 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: '#edf6d6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  calendarIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ccfbf1',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,

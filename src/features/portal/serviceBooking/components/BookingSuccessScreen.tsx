@@ -31,27 +31,34 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Success Icon */}
-      <View style={styles.successIconCircle}>
-        <Feather name="check" size={54} color="#ffffff" />
+      {/* Decorative success circles */}
+      <View style={styles.successWrapper}>
+        <View style={styles.successOuterCircle}>
+          <View style={styles.successIconCircle}>
+            <Feather name="check" size={44} color="#ffffff" />
+          </View>
+        </View>
       </View>
 
       <Text style={styles.title}>Booking Confirmed!</Text>
       <Text style={styles.subtitle}>
-        Your service appointment has been successfully scheduled. We will keep you updated.
+        Your service appointment has been successfully scheduled. We've notified our service advisors and technician team.
       </Text>
 
-      {/* Summary Card */}
+      {/* Premium Summary Card */}
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryTitle}>Appointment Summary</Text>
+        <Text style={styles.summaryTitle}>Appointment Details</Text>
 
         <View style={styles.rowDivider} />
 
         {/* Service Mode */}
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>SERVICE MODE</Text>
+          <View style={styles.rowLabelContainer}>
+            <Feather name={pickupRequired ? "truck" : "compass"} size={15} color="#8cc63f" style={styles.rowIcon} />
+            <Text style={styles.summaryLabel}>SERVICE MODE</Text>
+          </View>
           <Text style={styles.summaryValue}>
-            {pickupRequired ? 'Doorstep pickup' : 'Workshop drop-off'}
+            {pickupRequired ? 'Doorstep Pickup' : 'Workshop Drop-off'}
           </Text>
         </View>
 
@@ -60,8 +67,13 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
             <View style={styles.rowDivider} />
             {/* Service Center */}
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>SERVICE CENTER</Text>
-              <Text style={styles.summaryValue}>{selectedCenter}</Text>
+              <View style={styles.rowLabelContainer}>
+                <Feather name="map-pin" size={15} color="#8cc63f" style={styles.rowIcon} />
+                <Text style={styles.summaryLabel}>SERVICE CENTER</Text>
+              </View>
+              <Text style={[styles.summaryValue, { maxWidth: '55%', textAlign: 'right' }]} numberOfLines={2}>
+                {selectedCenter}
+              </Text>
             </View>
           </>
         ) : null}
@@ -70,7 +82,10 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
 
         {/* Date */}
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>DATE</Text>
+          <View style={styles.rowLabelContainer}>
+            <Feather name="calendar" size={15} color="#8cc63f" style={styles.rowIcon} />
+            <Text style={styles.summaryLabel}>DATE</Text>
+          </View>
           <Text style={styles.summaryValue}>{formatDateLabel(selectedDate)}</Text>
         </View>
 
@@ -78,19 +93,23 @@ export const BookingSuccessScreen: React.FC<BookingSuccessScreenProps> = ({
 
         {/* Time Slot */}
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>TIME SLOT</Text>
+          <View style={styles.rowLabelContainer}>
+            <Feather name="clock" size={15} color="#8cc63f" style={styles.rowIcon} />
+            <Text style={styles.summaryLabel}>TIME SLOT</Text>
+          </View>
           <Text style={styles.summaryValue}>{selectedSlotTime}</Text>
         </View>
       </View>
 
-      {/* Actions */}
+      {/* Action Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity style={styles.primaryButton} onPress={onTrackStatus} activeOpacity={0.8}>
           <Text style={styles.primaryButtonText}>Track Live Status</Text>
-          <Feather name="activity" size={20} color="#1a2b0c" />
+          <Feather name="arrow-right" size={18} color="#1a2b0c" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onGoHome} activeOpacity={0.7}>
+          <Feather name="home" size={15} color="#2e5b02" style={{ marginRight: 6 }} />
           <Text style={styles.secondaryButtonText}>Back to Home</Text>
         </TouchableOpacity>
       </View>
@@ -103,22 +122,36 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 24,
     paddingVertical: 20,
     backgroundColor: '#faf8f3',
   },
-  successIconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#95d03a',
+  successWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 10,
+    marginBottom: 20,
+  },
+  successOuterCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(140, 198, 63, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#95d03a',
+  },
+  successIconCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#8cc63f',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#8cc63f',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
-    elevation: 4,
+    elevation: 5,
   },
   title: {
     fontSize: 26,
@@ -133,34 +166,45 @@ const styles = StyleSheet.create({
     color: '#71717a',
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans-Regular',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     lineHeight: 20,
     marginBottom: 32,
   },
   summaryCard: {
     width: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 20,
+    borderWidth: 1,
+    borderColor: '#f1f1f3',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 10,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
     marginBottom: 36,
   },
   summaryTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#1a2b0c',
     fontFamily: 'PlusJakartaSans-Bold',
-    marginBottom: 12,
+    marginBottom: 14,
+    letterSpacing: 0.2,
   },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 14,
+  },
+  rowLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rowIcon: {
+    marginRight: 8,
+    opacity: 0.95,
   },
   summaryLabel: {
     fontSize: 11,
@@ -188,24 +232,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#a2e52c',
+    backgroundColor: '#8cc63f',
     borderRadius: 30,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    shadowColor: '#a2e52c',
+    shadowColor: '#8cc63f',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: '#1a2b0c',
-    fontSize: 18,
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
     marginRight: 8,
   },
   secondaryButton: {
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 14,
@@ -217,4 +262,3 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Bold',
   },
 });
-

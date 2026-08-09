@@ -241,8 +241,7 @@ export const RsaRequestForm: React.FC<RsaRequestFormProps> = ({
     const loadVehicles = async () => {
       setLoadingVehicles(true);
       try {
-        const allVehicles = await fetchCrmVehiclesApi();
-        const vehicles = allVehicles.filter(v => v.customerId === selectedCustomerId);
+        const vehicles = await fetchCrmVehiclesApi(selectedCustomerId);
         setVehiclesList(vehicles);
         // Autoselect vehicle if matched
         if (vehicleId) {

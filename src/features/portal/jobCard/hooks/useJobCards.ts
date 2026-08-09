@@ -10,15 +10,16 @@ import {
   fetchCustomerRsaRequestsApi,
   fetchRsaRequestDetailsApi,
   createSosRequestApi,
+  fetchJobCardEstimateApi,
+  approveJobCardEstimateApi,
 } from '../api';
-import { JobCard, Appointment, RsaRequest } from '../types';
+import { JobCard, Appointment, RsaRequest, Estimate } from '../types';
 
 export function useActiveJobCard(customerId?: string) {
   return useQuery<JobCard[]>({
     queryKey: ['portal', 'jobCards', customerId],
     queryFn: () => fetchCustomerJobCardsApi(customerId || ''),
     enabled: !!customerId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -28,7 +29,6 @@ export function useJobCardHistory(jobCardId?: string) {
     queryKey: ['portal', 'jobCardHistory', jobCardId],
     queryFn: () => fetchJobCardHistoryApi(jobCardId || ''),
     enabled: !!jobCardId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -38,7 +38,6 @@ export function useJobCardInspections(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInspections', jobCardId],
     queryFn: () => fetchJobInspectionsApi(jobCardId || ''),
     enabled: !!jobCardId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -48,7 +47,6 @@ export function useJobCardServices(jobCardId?: string) {
     queryKey: ['portal', 'jobCardServices', jobCardId],
     queryFn: () => fetchJobServicesApi(jobCardId || ''),
     enabled: !!jobCardId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -58,7 +56,6 @@ export function useJobCardParts(jobCardId?: string) {
     queryKey: ['portal', 'jobCardParts', jobCardId],
     queryFn: () => fetchJobPartsApi(jobCardId || ''),
     enabled: !!jobCardId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -68,7 +65,6 @@ export function useJobCardInvoice(jobCardId?: string) {
     queryKey: ['portal', 'jobCardInvoice', jobCardId],
     queryFn: () => fetchJobCardInvoiceApi(jobCardId || ''),
     enabled: !!jobCardId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -78,7 +74,6 @@ export function useCustomerAppointments(customerId?: string) {
     queryKey: ['portal', 'appointments', customerId],
     queryFn: () => fetchCustomerAppointmentsApi(customerId || ''),
     enabled: !!customerId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -88,7 +83,6 @@ export function useCustomerRsaRequests(customerId?: string) {
     queryKey: ['portal', 'rsaRequests', customerId],
     queryFn: () => fetchCustomerRsaRequestsApi(customerId || ''),
     enabled: !!customerId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -98,7 +92,6 @@ export function useRsaRequestDetails(requestId?: string) {
     queryKey: ['portal', 'rsaRequestDetails', requestId],
     queryFn: () => fetchRsaRequestDetailsApi(requestId || ''),
     enabled: !!requestId,
-    refetchInterval: 5000,
     staleTime: 0,
   });
 }
@@ -106,5 +99,21 @@ export function useRsaRequestDetails(requestId?: string) {
 export function useCreateSosRequest() {
   return useMutation({
     mutationFn: (payload: any) => createSosRequestApi(payload),
+  });
+}
+
+export function useJobCardEstimate(jobCardId?: string) {
+  return useQuery({
+    queryKey: ['portal', 'jobCardEstimate', jobCardId],
+    queryFn: () => fetchJobCardEstimateApi(jobCardId || ''),
+    enabled: !!jobCardId,
+    staleTime: 0,
+  });
+}
+
+export function useApproveJobCardEstimate() {
+  return useMutation({
+    mutationFn: (variables: { jobCardId: string; estimateId?: string }) =>
+      approveJobCardEstimateApi(variables.jobCardId, variables.estimateId),
   });
 }
