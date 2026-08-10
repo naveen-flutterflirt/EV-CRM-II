@@ -117,6 +117,10 @@ export interface Estimate {
   isApproved?: boolean;
   createdAt: string;
   updatedAt: string;
+  labourTotal?: number | string;
+  partsTotal?: number | string;
+  taxTotal?: number | string;
+  grandTotal?: number | string;
 }
 
 export interface Appointment {

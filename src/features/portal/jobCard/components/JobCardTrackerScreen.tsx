@@ -84,10 +84,38 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
 
   const { data: history, isLoading: loadingHistory, refetch: refetchHistory } = useJobCardHistory(realJobCardId, !isVirtual && !isMock);
   const { data: inspections, isLoading: loadingInspections, refetch: refetchInspections } = useJobCardInspections(realJobCardId, !isVirtual && !isMock);
-  const { data: services, isLoading: loadingServices, refetch: refetchServices } = useJobCardServices(realJobCardId, !isVirtual && !isMock);
-  const { data: parts, isLoading: loadingParts, refetch: refetchParts } = useJobCardParts(realJobCardId, !isVirtual && !isMock);
+  const { data: servicesData, isLoading: loadingServices, refetch: refetchServices } = useJobCardServices(realJobCardId, !isVirtual && !isMock);
+  const { data: partsData, isLoading: loadingParts, refetch: refetchParts } = useJobCardParts(realJobCardId, !isVirtual && !isMock);
   const { data: invoice, isLoading: loadingInvoice, refetch: refetchInvoice } = useJobCardInvoice(realJobCardId, !isVirtual && !isMock);
   const { data: estimate, isLoading: loadingEstimate, refetch: refetchEstimate } = useJobCardEstimate(realJobCardId, !isVirtual && !isMock);
+
+  const services = React.useMemo(() => {
+    if (!servicesData) return [];
+    return servicesData.map((s: any) => {
+      const isFree = Boolean(s.isFree);
+      const charge = isFree ? 0 : parseFloat(s.lineTotal || s.unitCharge || '0');
+      return {
+        ...s,
+        serviceName: s.catalogService?.serviceName || s.description || 'Labour Charge',
+        labourCharge: charge,
+        isFree,
+      };
+    });
+  }, [servicesData]);
+
+  const parts = React.useMemo(() => {
+    if (!partsData) return [];
+    return partsData.map((p: any) => {
+      const isWarranty = Boolean(p.isWarranty);
+      const price = isWarranty ? 0 : parseFloat(p.unitPrice || '0');
+      return {
+        ...p,
+        partName: p.part?.partName || (p.battery?.serialNo ? 'Battery' : '') || p.description || 'Spare Part',
+        unitPrice: price,
+        isWarranty,
+      };
+    });
+  }, [partsData]);
   const allInspectionsPassed = isMock 
     ? true 
     : (inspections && inspections.length > 0
@@ -273,46 +301,90 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
     try {
       const lineItems: Array<{ no: string; desc: string; hsn: string; qty: number; rate: number; unit: string; total: number; gstRate: number }> = [];
       
-      if (parts && parts.length > 0) {
-        parts.forEach((p: any) => {
-          lineItems.push({
-            no: String(lineItems.length + 1).padStart(2, "0"),
-            desc: p.partName,
-            hsn: "8507 60 00",
-            qty: p.qty,
-            rate: p.unitPrice,
-            unit: "Nos",
-            total: p.qty * p.unitPrice,
-            gstRate: 18,
-          });
+      parts.forEach((p: any) => {
+        lineItems.push({
+          no: String(lineItems.length + 1).padStart(2, "0"),
+          desc: p.partName,
+          hsn: p.partCode || "8507 60 00",
+          qty: p.qty,
+          rate: p.isWarranty ? 0 : p.unitPrice,
+          unit: "Nos",
+          total: p.isWarranty ? 0 : p.qty * p.unitPrice,
+          gstRate: p.gstRate || 18,
         });
-      }
+      });
 
-      if (services && services.length > 0) {
-        services.forEach((s: any) => {
-          lineItems.push({
-            no: String(lineItems.length + 1).padStart(2, "0"),
-            desc: s.serviceName,
-            hsn: "9987 19 99",
-            qty: 1,
-            rate: s.labourCharge,
-            unit: "Hrs",
-            total: s.labourCharge,
-            gstRate: 18,
-          });
+      services.forEach((s: any) => {
+        lineItems.push({
+          no: String(lineItems.length + 1).padStart(2, "0"),
+          desc: s.serviceName,
+          hsn: "9987 19 99",
+          qty: s.qty || 1,
+          rate: s.isFree ? 0 : (s.unitCharge || s.labourCharge),
+          unit: "Hrs",
+          total: s.isFree ? 0 : (s.qty || 1) * (s.unitCharge || s.labourCharge),
+          gstRate: s.gstRate || 18,
         });
-      }
+      });
 
       const itemsHtml = lineItems.map((item) => `
         <tr>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; color: #64748b;">${item.no}</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; font-weight: bold; color: #1e293b;">${item.desc}</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-family: monospace; color: #475569;">${item.hsn}</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.gstRate}%</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center; font-weight: bold;">${item.qty}</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: right;">₹${item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          <td style="padding: 6px; border-right: 1px solid #e2e8f0; text-align: center;">${item.unit}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: center; color: #64748b;">${item.no}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; font-weight: bold; color: #1e293b;">${item.desc}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: center; font-family: monospace; color: #475569;">${item.hsn}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: center; font-weight: bold; color: #475569;">${item.gstRate}%</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: center; font-weight: bold;">${item.qty}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: right;">₹${item.rate.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 6px; border-right: 1px solid #cbd5e1; text-align: center;">${item.unit}</td>
           <td style="padding: 6px; text-align: right; font-weight: 800; color: #0f172a;">₹${item.total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+        </tr>
+      `).join('');
+
+      // Group taxes by HSN/SAC code matching ERP logic
+      const hsnMap: { [code: string]: { val: number; rate: number; tax: number } } = {};
+      
+      parts.forEach((p: any) => {
+        if (p.isWarranty) return;
+        const code = p.partCode || "8507 60 00";
+        const val = p.qty * p.unitPrice;
+        const rate = (p.gstRate || 18) / 2;
+        const tax = val * ((p.gstRate || 18) / 100) / 2;
+        if (!hsnMap[code]) {
+          hsnMap[code] = { val: 0, rate, tax: 0 };
+        }
+        hsnMap[code].val += val;
+        hsnMap[code].tax += tax;
+      });
+
+      services.forEach((s: any) => {
+        if (s.isFree) return;
+        const code = "9987 19 99";
+        const val = (s.qty || 1) * (s.unitCharge || s.labourCharge);
+        const rate = (s.gstRate || 18) / 2;
+        const tax = val * ((s.gstRate || 18) / 100) / 2;
+        if (!hsnMap[code]) {
+          hsnMap[code] = { val: 0, rate, tax: 0 };
+        }
+        hsnMap[code].val += val;
+        hsnMap[code].tax += tax;
+      });
+
+      const hsnItems = Object.entries(hsnMap).map(([code, data]) => ({
+        code,
+        val: data.val,
+        rate: data.rate,
+        tax: data.tax
+      }));
+
+      const hsnRowsHtml = hsnItems.map((hsn) => `
+        <tr>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; font-family: monospace;">${hsn.code}</td>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${hsn.val.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center;">${hsn.rate}%</td>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${hsn.tax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center;">${hsn.rate}%</td>
+          <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${hsn.tax.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+          <td style="padding: 4px; text-align: right; font-weight: 800; color: #0f172a;">₹${(hsn.tax * 2).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
         </tr>
       `).join('');
 
@@ -328,46 +400,48 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               margin: 0;
               padding: 20px;
               color: #334155;
-              font-size: 11px;
+              font-size: 10px;
             }
             .invoice-box {
               width: 100%;
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e1;
               padding: 20px;
               background: #fff;
               position: relative;
+              box-sizing: border-box;
             }
             .title {
               text-align: center;
-              font-size: 18px;
+              font-size: 16px;
               font-weight: 900;
               text-transform: uppercase;
               letter-spacing: 1px;
               margin-bottom: 20px;
               color: #0f172a;
-              border-bottom: 2px solid #f1f5f9;
+              border-bottom: 2px solid #cbd5e1;
               padding-bottom: 10px;
             }
             .grid {
               display: grid;
               grid-template-cols: 1fr 1fr;
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e1;
               margin-bottom: 15px;
             }
             .grid-col {
               padding: 10px;
+              box-sizing: border-box;
             }
             .grid-col-right {
-              border-left: 1px solid #e2e8f0;
+              border-left: 1px solid #cbd5e1;
               display: grid;
               grid-template-cols: 100px 1fr;
               gap: 5px;
             }
             .metadata-label {
               font-weight: 800;
-              color: #94a3b8;
+              color: #64748b;
               text-transform: uppercase;
-              font-size: 9px;
+              font-size: 8px;
             }
             .metadata-value {
               font-weight: bold;
@@ -375,14 +449,14 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
             }
             .bill-to {
               font-weight: 800;
-              color: #94a3b8;
+              color: #64748b;
               text-transform: uppercase;
-              font-size: 9px;
+              font-size: 8px;
               margin-bottom: 5px;
               display: block;
             }
             .buyer-name {
-              font-size: 12px;
+              font-size: 11px;
               font-weight: 900;
               color: #0f172a;
               margin-bottom: 3px;
@@ -391,18 +465,18 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               width: 100%;
               border-collapse: collapse;
               margin-top: 15px;
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e1;
             }
             th {
               background: #f8fafc;
-              padding: 8px;
+              padding: 6px;
               font-weight: 900;
-              font-size: 10px;
-              border-bottom: 2px solid #e2e8f0;
-              border-right: 1px solid #e2e8f0;
+              font-size: 9px;
+              border-bottom: 2px solid #cbd5e1;
+              border-right: 1px solid #cbd5e1;
             }
             tr {
-              border-bottom: 1px solid #e2e8f0;
+              border-bottom: 1px solid #cbd5e1;
             }
             .subtotal-row {
               background: #f8fafc;
@@ -414,7 +488,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               margin-top: 15px;
             }
             .tax-breakdown {
-              border: 1px solid #e2e8f0;
+              border: 1px solid #cbd5e1;
               padding: 10px;
               background: #f8fafc;
               display: flex;
@@ -427,7 +501,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               font-weight: bold;
             }
             .grand-total {
-              font-size: 13px;
+              font-size: 12px;
               font-weight: 900;
               color: #4d6a00;
               border-top: 1px solid #cbd5e1;
@@ -435,7 +509,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               margin-top: 5px;
             }
             .words-box {
-              border: 2px solid #101828;
+              border: 1px solid #cbd5e1;
               padding: 8px;
               background: #f8fafc;
               margin-top: 15px;
@@ -446,71 +520,74 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               font-weight: 900;
             }
             .payment-summary-box {
-              border: 2px solid #101828;
+              border: 1px solid #cbd5e1;
               padding: 10px;
               margin-top: 15px;
               background-color: #f8fafc;
               display: flex;
               justify-content: space-between;
-              font-size: 11px;
+              font-size: 10px;
               font-weight: bold;
             }
             .bank-details-box {
-              border: 2px solid #101828;
+              border: 1px solid #cbd5e1;
               padding: 10px;
               margin-top: 15px;
               display: grid;
               grid-template-cols: 1fr 1fr;
-              font-size: 10px;
+              font-size: 9px;
             }
             .declaration-box {
-              border: 2px solid #101828;
+              border: 1px solid #cbd5e1;
               margin-top: 15px;
               padding: 8px;
-              font-size: 8px;
+              font-size: 7.5px;
               color: #64748b;
               line-height: 1.3;
             }
             .watermark {
               position: absolute;
-              top: 35%;
-              left: 30%;
-              transform: rotate(-25deg);
-              border: 5px solid ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};
+              top: 38%;
+              left: 28%;
+              transform: rotate(-22deg);
+              border: 6px solid ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};
               color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};
-              font-size: 40px;
+              font-size: 44px;
               font-weight: 900;
               text-transform: uppercase;
-              padding: 10px 30px;
-              border-radius: 10px;
-              opacity: 0.25;
+              padding: 12px 36px;
+              border-radius: 16px;
+              opacity: 0.15;
               letter-spacing: 4px;
+              background-color: transparent;
+              z-index: 99;
+              pointer-events: none;
             }
           </style>
         </head>
         <body>
           <div class="invoice-box">
-            <div class="watermark">${invoice.status.toLowerCase() === 'paid' ? 'Paid' : 'Unpaid'}</div>
+            ${invoice.status.toLowerCase() === 'paid' ? '<div class="watermark">Paid</div>' : ''}
             <div class="title">Tax Invoice</div>
 
             <!-- Vendor / Company Details -->
             <div class="grid">
               <div class="grid-col">
-                <div style="font-size: 13px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">FlutterFlirt EV & Mobility</div>
-                <div style="font-weight: bold; color: #1e293b;">${jobCard.center?.centerName || 'Bhopal Head Office'}</div>
-                <div style="color: #64748b; font-size: 9px; margin-top: 3px; line-height: 1.3;">
-                  ${jobCard.center?.address || '123 Arera Colony, Bhopal, MP — 462016'}
+                <div style="font-size: 12px; font-weight: 900; color: #0f172a; margin-bottom: 5px;">FlutterFlirt EV & Mobility</div>
+                <div style="font-weight: bold; color: #1e293b;">${jobCard.center?.centerName || 'Service Center'}</div>
+                <div style="color: #64748b; font-size: 8px; margin-top: 3px; line-height: 1.3;">
+                  ${jobCard.center?.address || 'Primary EV Workshop Center'}
                 </div>
-                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: ${jobCard.center?.gstin || '23AAACF1234A1Z1'}</div>
+                <div style="font-weight: 800; color: #0f172a; margin-top: 8px;">GSTIN: ${jobCard.center?.gstin || '27AABCF1234M1Z5'}</div>
               </div>
-              <div class="grid-col-right" style="border-left: 1px solid #e2e8f0;">
+              <div class="grid-col-right" style="border-left: 1px solid #cbd5e1;">
                 <div class="grid-col" style="grid-column: span 2; display: grid; grid-template-cols: 100px 1fr; gap: 5px;">
                   <div class="metadata-label">Invoice No.</div>
                   <div class="metadata-value">${invoice.invoiceNumber}</div>
                   <div class="metadata-label">Dated</div>
                   <div class="metadata-value">${formatDate(invoice.invoiceDate)}</div>
                   <div class="metadata-label">Job Card No.</div>
-                  <div class="metadata-value">${jobCard.jobNumber}</div>
+                  <div class="metadata-value">JOB-${(jobCardId || '').slice(0, 8)}</div>
                   <div class="metadata-label">Vehicle Reg No.</div>
                   <div class="metadata-value">${jobCard.vehicle?.registrationNo || 'N/A'}</div>
                 </div>
@@ -522,11 +599,11 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               <div class="grid-col">
                 <span class="bill-to">Buyer (Bill To)</span>
                 <div class="buyer-name">${customerName || 'Valued Customer'}</div>
-                <div style="color: #64748b; font-size: 9px; line-height: 1.3;">
+                <div style="color: #64748b; font-size: 8px; line-height: 1.3;">
                   ${customerLocation || 'Customer Garage'}
                 </div>
               </div>
-              <div class="grid-col" style="border-left: 1px solid #e2e8f0; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
+              <div class="grid-col" style="border-left: 1px solid #cbd5e1; display: grid; grid-template-cols: 80px 1fr; gap: 5px;">
                 <div class="metadata-label">GSTIN/UIN:</div>
                 <div class="metadata-value">N/A</div>
                 <div class="metadata-label">State:</div>
@@ -554,7 +631,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               </thead>
               <tbody>
                 ${itemsHtml}
-                <tr class="subtotal-row">
+                <tr class="subtotal-row" style="border-top: 2px solid #cbd5e1;">
                   <td colspan="7" style="text-align: right; padding: 6px; font-weight: 800;">Subtotal (Taxable Amount):</td>
                   <td style="text-align: right; padding: 6px; font-weight: 900; color: #0f172a;">₹${invoice.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                 </tr>
@@ -584,9 +661,41 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               Amount Chargeable (in words): <span class="words-value">Rupees ${numberToWords(invoice.grandTotal)}</span>
             </div>
 
+            <!-- HSN/SAC Tax Breakup Details Table -->
+            <div style="margin-top: 15px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; background: #fff; box-sizing: border-box;">
+              <span style="font-weight: 800; color: #64748b; font-size: 8px; text-transform: uppercase; margin-bottom: 5px; display: block;">
+                HSN/SAC Tax Breakup Details:
+              </span>
+              <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-top: 5px; border: 1px solid #cbd5e1;">
+                <thead>
+                  <tr style="background: #f8fafc; border-bottom: 2px solid #cbd5e1;">
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: left; font-size: 7.5px;">HSN/SAC</th>
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right; font-size: 7.5px;">Taxable Value</th>
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center; font-size: 7.5px;">Central Rate</th>
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right; font-size: 7.5px;">Central Tax Amt.</th>
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center; font-size: 7.5px;">State Rate</th>
+                    <th style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right; font-size: 7.5px;">State Tax Amt.</th>
+                    <th style="padding: 4px; text-align: right; font-size: 7.5px;">Total Tax Amt.</th>
+                  </tr>
+                </thead>
+                <tbody style="font-weight: bold;">
+                  ${hsnRowsHtml}
+                  <tr style="border-top: 1px solid #cbd5e1; font-weight: 900; background: #f8fafc;">
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1;">Total</td>
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${invoice.taxableAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center;">—</td>
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${invoice.cgstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: center;">—</td>
+                    <td style="padding: 4px; border-right: 1px solid #cbd5e1; text-align: right;">₹${invoice.sgstAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                    <td style="padding: 4px; text-align: right; color: #0f172a;">₹${(invoice.cgstAmount + invoice.sgstAmount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             <!-- Payment Summary Box -->
             <div class="payment-summary-box">
-              <span style="color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};">
+              <span style="color: #10b981;">
                 Amount Paid: ₹${invoice.amountPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
               </span>
               <span style="color: ${invoice.status.toLowerCase() === 'paid' ? '#10b981' : '#ef4444'};">
@@ -599,11 +708,11 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
               <div>
                 <span style="font-weight: 800; color: #101828; display: block; margin-bottom: 4px;">COMPANY'S BANK DETAILS:</span>
                 Bank Name: <strong>HDFC Bank</strong><br/>
-                A/c No: <strong>50200298754501</strong><br/>
+                A/c No: <strong>50100246734561</strong><br/>
                 Branch & IFSC: <strong>Vashi — HDFC0001234</strong>
               </div>
               <div style="text-align: right; display: flex; flex-direction: column; justify-content: space-between; height: 50px;">
-                <span style="font-weight: 800; color: #101828;">For ${jobCard.center?.centerName || 'Bhopal Head Office'}</span>
+                <span style="font-weight: 800; color: #101828;">For ${jobCard.center?.centerName || 'Service Center'}</span>
                 <span style="font-size: 8px; font-weight: bold; color: #64748b; font-style: italic;">AUTHORISED SIGNATORY</span>
               </div>
             </div>
@@ -789,16 +898,24 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
       time: getStatusTimeFromHistory('awaiting_approval'),
       completed: currentStep > 6 || (currentStep === 6 && isEstimateApproved),
       renderDetails: () => {
-        const partsSubtotal = parts
-          ? parts.reduce((acc: number, p: any) => acc + (p.qty * (p.unitPrice || 0)), 0)
-          : 0;
+        // Calculate subtotal and taxes
+        const partsSubtotal = parts.reduce((acc: number, p: any) => acc + (p.qty * p.unitPrice), 0);
+        const labourSubtotal = services.reduce((acc: number, s: any) => acc + s.labourCharge, 0);
+        const taxableSubtotal = partsSubtotal + labourSubtotal;
 
-        const labourSubtotal = services
-          ? services.reduce((acc: number, s: any) => acc + (s.labourCharge || 0), 0)
-          : 0;
+        // CGST/SGST itemized calculations matching ERP/backend logic exactly
+        const totalCgst = parts.reduce((acc: number, p: any) => acc + (p.isWarranty ? 0 : (p.qty * p.unitPrice) * ((p.gstRate || 18) / 100) / 2), 0) +
+          services.reduce((acc: number, s: any) => acc + (s.isFree ? 0 : Math.round((s.qty || 1) * (s.unitCharge || s.labourCharge) * ((s.gstRate || 18) / 100) / 2)), 0);
+        const totalSgst = totalCgst;
+        const totalTax = totalCgst + totalSgst;
+        const estimatedGrandTotal = taxableSubtotal + totalTax;
 
-        const totalTax = (partsSubtotal + labourSubtotal) * 0.18;
-        const estimatedGrandTotal = partsSubtotal + labourSubtotal + totalTax;
+        // Use pre-calculated backend estimate totals if available
+        const hasEstimateData = estimate && (estimate.partsTotal !== undefined || estimate.grandTotal !== undefined);
+        const pSubtotal = hasEstimateData ? parseFloat(String(estimate.partsTotal || 0)) : partsSubtotal;
+        const lSubtotal = hasEstimateData ? parseFloat(String(estimate.labourTotal || 0)) : labourSubtotal;
+        const taxSubtotal = hasEstimateData ? parseFloat(String(estimate.taxTotal || 0)) : totalTax;
+        const grandTotalValue = hasEstimateData ? parseFloat(String(estimate.grandTotal || 0)) : estimatedGrandTotal;
 
         return (
           <View style={styles.detailsBox}>
@@ -840,15 +957,15 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
                 <View style={{ borderTopWidth: 1, borderTopColor: '#f4f4f5', marginTop: 8, paddingTop: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 2 }}>
                     <Text style={{ fontSize: 12, color: '#71717a' }}>Taxable Amount:</Text>
-                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice?.taxableAmount || (partsSubtotal + labourSubtotal))).toLocaleString()}</Text>
+                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice?.taxableAmount || (pSubtotal + lSubtotal))).toLocaleString()}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 2 }}>
-                    <Text style={{ fontSize: 12, color: '#71717a' }}>Estimated GST (18%):</Text>
-                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice ? (invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount) : totalTax)).toLocaleString()}</Text>
+                    <Text style={{ fontSize: 12, color: '#71717a' }}>Estimated GST (CGST + SGST):</Text>
+                    <Text style={{ fontSize: 12, color: '#27272a', fontWeight: '600' }}>₹{parseFloat(String(invoice ? (invoice.cgstAmount + invoice.sgstAmount + invoice.igstAmount) : taxSubtotal)).toLocaleString()}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 4 }}>
                     <Text style={{ fontSize: 13, fontWeight: '800', color: '#18181b' }}>Grand Total:</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#4d6a00' }}>₹{parseFloat(String(invoice?.grandTotal || estimatedGrandTotal)).toLocaleString()}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: '#4d6a00' }}>₹{parseFloat(String(invoice?.grandTotal || grandTotalValue)).toLocaleString()}</Text>
                   </View>
                 </View>
 
@@ -1188,7 +1305,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
                   <TouchableOpacity
                     style={styles.stepHeaderRow}
                     onPress={() => {
-                      if (step.completed) {
+                      if (step.completed || isActive) {
                         setExpandedStep(isExpanded ? null : step.id);
                       }
                     }}
@@ -1207,7 +1324,7 @@ export const JobCardTrackerScreen: React.FC<JobCardTrackerScreenProps> = ({
                     </View>
                     <View style={styles.stepTimeRow}>
                       <Text style={styles.stepTimeText}>{step.time}</Text>
-                      {step.completed && (
+                      {(step.completed || isActive) && (
                         <Feather
                           name={isExpanded ? "chevron-up" : "chevron-down"}
                           size={16}
@@ -1817,7 +1934,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     marginTop: 12,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
   },
   downloadInvoiceBtnText: {
     color: '#ffffff',

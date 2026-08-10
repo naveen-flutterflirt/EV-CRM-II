@@ -224,6 +224,9 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
   
   const [assignedBayId, setAssignedBayId] = useState<string | null>(null);
   const [assignedBayName, setAssignedBayName] = useState('Unassigned');
+
+  const [hasAllottedCenter, setHasAllottedCenter] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   
 
 
@@ -248,6 +251,15 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
     const loadInitial = async () => {
       setLoadingStates(true);
       setLoadingCustomers(true);
+      setLoadingProfile(true);
+
+      let loggedInUser: any = null;
+      try {
+        loggedInUser = await fetchMeApi();
+      } catch (meErr) {
+        console.warn("Failed to load self profile", meErr);
+      }
+
       try {
         const states = await fetchStatesApi();
         setStatesList(states);
@@ -260,35 +272,35 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         setCustomersList(customers);
       } catch (err) {
         console.warn("Failed to load all customers (likely 403 Forbidden). Fetching self profile...", err);
-        try {
-          const me = await fetchMeApi();
-          if (me && me.customerId) {
-            setCustomersList([{
-              customerId: me.customerId,
-              name: me.fullName || me.username || "Customer",
-              customerCode: `CUST-${me.customerId.substring(0, 5)}`
-            }]);
-
-            // Prefill home center if initialCenterId is not set
-            if (!initialCenterId && me.homeCenter) {
-              setSelectedCenterId(me.homeCenter.centerId);
-              setSelectedCenterName(me.homeCenter.centerName);
-              if (me.homeCenter.stateId) {
-                setSelectedStateId(me.homeCenter.stateId);
-                setSelectedStateName(me.homeCenter.state?.stateName || '');
-              }
-            }
-          }
-        } catch (meErr) {
-          console.warn("Failed to load self profile", meErr);
+        if (loggedInUser && loggedInUser.customerId) {
+          setCustomersList([{
+            customerId: loggedInUser.customerId,
+            name: loggedInUser.fullName || loggedInUser.username || "Customer",
+            customerCode: `CUST-${loggedInUser.customerId.substring(0, 5)}`
+          }]);
         }
-      } finally {
-        setLoadingStates(false);
-        setLoadingCustomers(false);
       }
+
+      // Prefill service center based on logged-in user's allotted center (homeCenter)
+      if (loggedInUser && loggedInUser.homeCenter) {
+        setSelectedCenterId(loggedInUser.homeCenter.centerId);
+        setSelectedCenterName(loggedInUser.homeCenter.centerName);
+        setHasAllottedCenter(true);
+        if (loggedInUser.homeCenter.stateId) {
+          setSelectedStateId(loggedInUser.homeCenter.stateId);
+          setSelectedStateName(loggedInUser.homeCenter.state?.stateName || '');
+        }
+      } else if (initialCenterId) {
+        setSelectedCenterId(initialCenterId);
+        setSelectedCenterName(initialCenterName);
+      }
+
+      setLoadingProfile(false);
+      setLoadingStates(false);
+      setLoadingCustomers(false);
     };
     loadInitial();
-  }, [initialCenterId]);
+  }, [initialCenterId, initialCenterName]);
 
   // Fetch Service Centers when state changes
   useEffect(() => {
@@ -411,7 +423,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
 
   // 4. Default to first service center if none is selected or resolved
   useEffect(() => {
-    if (serviceCentersList.length > 0 && !selectedCenterId) {
+    if (!loadingProfile && serviceCentersList.length > 0 && !selectedCenterId) {
       const firstCenter = serviceCentersList[0];
       setSelectedCenterId(firstCenter.centerId);
       setSelectedCenterName(firstCenter.centerName);
@@ -419,7 +431,7 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
         setSelectedStateId(firstCenter.stateId);
       }
     }
-  }, [serviceCentersList, selectedCenterId]);
+  }, [loadingProfile, serviceCentersList, selectedCenterId]);
 
   // Validate form
   const validateForm = () => {
@@ -531,7 +543,16 @@ export const AppointmentForm: React.FC<AppointmentFormProps> = ({
             <View style={styles.sectionDivider} />
           </View>
 
-
+          {/* Service Center Display */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.fieldLabel}>Service Center</Text>
+            <View style={[styles.selectorTrigger, styles.disabledTrigger, styles.normalBorder]}>
+              <Text style={styles.triggerText}>
+                {selectedCenterName || 'No service center allotted'}
+              </Text>
+              <Feather name="map-pin" size={18} color="#a1a1aa" />
+            </View>
+          </View>
 
           {/* Vehicle */}
           <SelectorField
