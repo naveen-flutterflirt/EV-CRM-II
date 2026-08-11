@@ -54,13 +54,22 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             </View>
 
             <View style={styles.headerActions}>
-              {unreadCount > 0 && onMarkAllRead && (
+              {onMarkAllRead && (
                 <TouchableOpacity
-                  style={styles.markAllBtn}
+                  style={[styles.markAllBtn, unreadCount === 0 && styles.markAllBtnDisabled]}
                   onPress={onMarkAllRead}
-                  activeOpacity={0.8}
+                  disabled={unreadCount === 0}
+                  activeOpacity={0.85}
                 >
-                  <Text style={styles.markAllText}>Mark all read</Text>
+                  <Feather
+                    name="check-square"
+                    size={12}
+                    color={unreadCount === 0 ? '#94a3b8' : '#3f6212'}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={[styles.markAllText, unreadCount === 0 && styles.markAllTextDisabled]}>
+                    Mark all read
+                  </Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -236,16 +245,27 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfccb',
+    borderWidth: 1,
+    borderColor: '#d9f99d',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#f1f5f9',
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
   markAllText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#475569',
+    color: '#3f6212',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  markAllBtnDisabled: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  markAllTextDisabled: {
+    color: '#94a3b8',
   },
   closeBtn: {
     padding: 4,

@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { CustomerNotificationItem } from '../types';
@@ -132,11 +134,22 @@ export const NotificationScreen: React.FC<NotificationScreenProps> = ({ onBack }
           <Text style={styles.headerTitle}>Notifications</Text>
         </View>
 
-        {unreadCount > 0 && (
-          <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.8}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.markAllBtn, unreadCount === 0 && styles.markAllBtnDisabled]}
+          onPress={handleMarkAllRead}
+          disabled={unreadCount === 0}
+          activeOpacity={0.85}
+        >
+          <Feather
+            name="check-square"
+            size={14}
+            color={unreadCount === 0 ? '#94a3b8' : '#3f6212'}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.markAllText, unreadCount === 0 && styles.markAllTextDisabled]}>
+            Mark all read
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -234,6 +247,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0,
   },
   topHeader: {
     flexDirection: 'row',
@@ -259,11 +273,28 @@ const styles = StyleSheet.create({
     color: '#0f172a',
     fontFamily: 'PlusJakartaSans-Bold',
   },
+  markAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfccb',
+    borderWidth: 1,
+    borderColor: '#d9f99d',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
   markAllText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#4d7c0f',
+    color: '#3f6212',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  markAllBtnDisabled: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+  },
+  markAllTextDisabled: {
+    color: '#94a3b8',
   },
   container: {
     flex: 1,
