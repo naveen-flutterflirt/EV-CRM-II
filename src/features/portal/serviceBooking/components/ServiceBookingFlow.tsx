@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { ServiceModeScreen } from './ServiceModeScreen';
 import { ServiceCenterScreen } from './ServiceCenterScreen';
 import { BookingSuccessScreen } from './BookingSuccessScreen';
@@ -8,6 +8,7 @@ import { AppointmentForm } from './AppointmentForm';
 import { RsaRequestForm } from './RsaRequestForm';
 import { RsaSuccessScreen } from './RsaSuccessScreen';
 import { useCreateSosRequest } from '../../jobCard/hooks/useJobCards';
+import { useCustomerAppointments } from '../../jobCard/hooks/useJobCards';
 
 interface ServiceBookingFlowProps {
   vehicleId?: string;
@@ -41,6 +42,9 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
   // Fetch centers from backend API only when center selection step is active
   const { data: dbCenters, isLoading: loadingCenters } = useServiceCenters(step === 2 || step === 3);
 
+  // Fetch customer's appointments to check active booking limit (max 4)
+  const { data: appointments } = useCustomerAppointments(customerId);
+
   const formattedCenters = dbCenters && dbCenters.length > 0
     ? dbCenters.map((c, idx) => ({
         id: c.centerId,
@@ -63,6 +67,20 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
       // Doorstep pickup goes directly to RSA Request Form
       setStep(5);
     } else {
+      // Workshop drop-off: Check active appointment limit (max 4)
+      const activeAppts = appointments?.filter(appt => 
+        appt.status === 'confirmed' || 
+        appt.status === 'requested' || 
+        appt.status === 'rescheduled' || 
+        appt.status === 'checked_in'
+      ) || [];
+      if (activeAppts.length >= 4) {
+        Alert.alert(
+          "Booking Limit Reached",
+          "You cannot book more than four appointments at a time."
+        );
+        return;
+      }
       // Workshop drop-off opens appointment form directly
       setStep(3);
     }
@@ -75,6 +93,21 @@ export const ServiceBookingFlow: React.FC<ServiceBookingFlowProps> = ({
   };
 
   const handleFormSubmit = (formData: any) => {
+    // Check active appointment limit (max 4)
+    const activeAppts = appointments?.filter(appt => 
+      appt.status === 'confirmed' || 
+      appt.status === 'requested' || 
+      appt.status === 'rescheduled' || 
+      appt.status === 'checked_in'
+    ) || [];
+    if (activeAppts.length >= 4) {
+      Alert.alert(
+        "Booking Limit Reached",
+        "You cannot book more than four appointments at a time."
+      );
+      return;
+    }
+
     try {
       const d = new Date(formData.scheduledAt);
       setSelectedDate(formData.scheduledAt);

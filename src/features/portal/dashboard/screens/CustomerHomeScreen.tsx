@@ -403,29 +403,60 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
     return null;
   };
 
+  const getVirtualJobCard = (appt: any) => {
+    if (!appt) return null;
+    return {
+      jobCardId: appt.appointmentId || '',
+      jobNumber: appt.apptNumber,
+      customerId: appt.customerId,
+      vehicleId: appt.vehicleId,
+      appointmentId: appt.appointmentId,
+      appointment: {
+        appointmentId: appt.appointmentId,
+        apptNumber: appt.apptNumber,
+        scheduledAt: appt.scheduledAt,
+        status: appt.status,
+      },
+      status: 'open' as const,
+      jobType: appt.jobType,
+      priority: 'normal' as const,
+      openedAt: appt.scheduledAt,
+      center: appt.center,
+      vehicle: appt.vehicle,
+      isVirtual: true,
+    };
+  };
+
   const activeJobCard = getActiveJobCard();
   const activeAppt = getActiveAppointment();
+  const virtualJobCard = getVirtualJobCard(activeAppt);
 
-  const virtualJobCard = activeAppt ? {
-    jobCardId: activeAppt.appointmentId || '',
-    jobNumber: activeAppt.apptNumber,
-    customerId: activeAppt.customerId,
-    vehicleId: activeAppt.vehicleId,
-    appointmentId: activeAppt.appointmentId,
-    appointment: {
-      appointmentId: activeAppt.appointmentId,
-      apptNumber: activeAppt.apptNumber,
-      scheduledAt: activeAppt.scheduledAt,
-      status: activeAppt.status,
-    },
-    status: 'open' as const,
-    jobType: activeAppt.jobType,
-    priority: 'normal' as const,
-    openedAt: activeAppt.scheduledAt,
-    center: activeAppt.center,
-    vehicle: activeAppt.vehicle,
-    isVirtual: true,
-  } : null;
+  const activeAppointments = appointments && appointments.length > 0
+    ? appointments.filter(appt => 
+        appt.status === 'confirmed' || 
+        appt.status === 'requested' || 
+        appt.status === 'rescheduled' || 
+        appt.status === 'checked_in'
+      )
+    : [];
+
+  const formatAppointmentDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch {
+      return dateStr;
+    }
+  };
 
   useEffect(() => {
     if (selectedJobCard?.isVirtual && activeJobCard) {
@@ -626,7 +657,7 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               </TouchableOpacity>
             ) : null}
 
-            {/* 3. Job Card Status Summary or Upcoming Appointment or Empty State */}
+            {/* 3. Job Card Status Summary Card */}
             {activeJobCard ? (() => {
               const progress = getJobCardProgress(activeJobCard.status, inspections, invoice, parts, estimate);
               return (
@@ -663,45 +694,62 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
                   </View>
                 </TouchableOpacity>
               );
-            })() : (activeAppt ? (() => {
-              const isConfirmed = activeAppt.status === 'confirmed';
-              return (
-                <TouchableOpacity 
-                  style={styles.jobTrackingCard}
-                  onPress={() => {
-                    setSelectedJobCard(virtualJobCard as any);
-                    setActiveTab('JOBCARD');
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.jobCardHeaderRow}>
-                    <View style={styles.calendarIconBg}>
-                      <Feather name="calendar" size={18} color="#0f766e" />
-                    </View>
-                    <View style={styles.jobCardTextContainer}>
-                      <Text style={[styles.jobCardLabel, { color: '#0f766e' }]}>UPCOMING APPOINTMENT</Text>
-                      <Text style={styles.jobCardTitle}>
-                        {activeAppt.apptNumber}
-                      </Text>
-                      <Text style={styles.jobCardDesc}>
-                        Status: {isConfirmed ? 'Confirmed & Scheduled' : 'Initiated (Awaiting Confirmation)'}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={20} color="#71717a" />
-                  </View>
-                  <View style={styles.progressContainer}>
-                    <View style={styles.progressBarBg}>
-                      <View style={[styles.progressBarFill, { backgroundColor: '#0f766e', width: `${isConfirmed ? 20 : 10}%` }]} />
-                    </View>
-                    <Text style={styles.progressText}>
-                      Step {isConfirmed ? 2 : 1} of 10 • {isConfirmed ? 'Appointment Confirmed' : 'Appointment Initiated'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })() : (!activeRsa ? (
+            })() : null}
+
+            {/* 4. Booked Appointments Section (View Multiple Appointments) */}
+            {activeAppointments.length > 0 ? (
+              <View style={styles.appointmentsSection}>
+                <Text style={styles.sectionHeaderTitle}>Upcoming Appointments</Text>
+                {activeAppointments.map((appt) => {
+                  const isConfirmed = appt.status === 'confirmed';
+                  return (
+                    <TouchableOpacity 
+                      key={appt.appointmentId}
+                      style={[styles.jobTrackingCard, { marginTop: 8 }]}
+                      onPress={() => {
+                        setSelectedJobCard(getVirtualJobCard(appt) as any);
+                        setActiveTab('JOBCARD');
+                      }}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.jobCardHeaderRow}>
+                        <View style={styles.calendarIconBg}>
+                          <Feather name="calendar" size={18} color="#0f766e" />
+                        </View>
+                        <View style={styles.jobCardTextContainer}>
+                          <Text style={[styles.jobCardLabel, { color: '#0f766e' }]}>
+                            {appt.jobType === 'scheduled_maintenance' ? 'Scheduled Maintenance' : (appt.jobType === 'running_repair' ? 'Running Repair' : 'General Service')}
+                          </Text>
+                          <Text style={styles.jobCardTitle}>
+                            {appt.apptNumber}
+                          </Text>
+                          <Text style={styles.jobCardDesc}>
+                            Status: {isConfirmed ? 'Confirmed & Scheduled' : (appt.status === 'checked_in' ? 'Checked In' : 'Initiated (Awaiting Confirmation)')}
+                          </Text>
+                          <Text style={styles.appointmentTimeText}>
+                            Date: {formatAppointmentDate(appt.scheduledAt)}
+                          </Text>
+                        </View>
+                        <Feather name="chevron-right" size={20} color="#71717a" />
+                      </View>
+                      <View style={styles.progressContainer}>
+                        <View style={styles.progressBarBg}>
+                          <View style={[styles.progressBarFill, { backgroundColor: '#0f766e', width: `${appt.status === 'checked_in' ? 30 : (isConfirmed ? 20 : 10)}%` }]} />
+                        </View>
+                        <Text style={styles.progressText}>
+                          Status • {appt.status.replace(/_/g, ' ').toUpperCase()}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            {/* 5. Empty State if neither job card nor appointments are present */}
+            {!activeJobCard && activeAppointments.length === 0 && !activeRsa ? (
               <NoActiveJobCardCard onBookServicePress={() => setActiveTab('BOOK')} />
-            ) : null))}
+            ) : null}
 
             {/* 2. Quick Actions Grid */}
             <QuickActionsGrid
@@ -1004,5 +1052,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     fontFamily: 'PlusJakartaSans-Bold',
+  },
+  sectionHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1e293b',
+    fontFamily: 'PlusJakartaSans-Bold',
+    marginTop: 18,
+    marginBottom: 6,
+    paddingHorizontal: 2,
+  },
+  appointmentTimeText: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 4,
+    fontFamily: 'PlusJakartaSans-Regular',
+  },
+  appointmentsSection: {
+    marginBottom: 10,
   },
 });
