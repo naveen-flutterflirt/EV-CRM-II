@@ -1,6 +1,7 @@
 import api from "../../../../config/axios";
 import { getAuthMeCached } from "../../../../common/services/authCache";
 import { fetchWithTtlCache } from "../../../../common/services/apiCache";
+import { fetchRawVehiclesCached } from "../../../../common/services/vehicleCache";
 import { CustomerDashboardData } from "../types";
 
 export async function fetchCustomerDashboardApi(forceRefresh = false): Promise<CustomerDashboardData> {
@@ -16,23 +17,22 @@ export async function fetchCustomerDashboardApi(forceRefresh = false): Promise<C
       }
 
       // 2. Fetch customer-scoped vehicles, job-cards, and RSA requests using customerId filter
-      const vehicleUrl = `/vehicles?customerId=${customerId}`;
       const jobCardUrl = `/job-cards?customerId=${customerId}`;
       const rsaUrl = `/rsa/requests?customerId=${customerId}`;
 
-      const [vehicleRes, activitiesRes, rsaRes] = await Promise.allSettled([
-        api.get(vehicleUrl),
+      const [vehicleDataResult, activitiesRes, rsaRes] = await Promise.allSettled([
+        fetchRawVehiclesCached(customerId, forceRefresh),
         api.get(jobCardUrl),
         api.get(rsaUrl),
       ]);
 
-      const vehicleData = vehicleRes.status === "fulfilled" ? vehicleRes.value.data?.data || vehicleRes.value.data : null;
+      const vehicleData = vehicleDataResult.status === "fulfilled" ? vehicleDataResult.value : null;
       const activityData = activitiesRes.status === "fulfilled" ? activitiesRes.value.data?.data || activitiesRes.value.data : null;
       const rsaData = rsaRes.status === "fulfilled" ? rsaRes.value.data?.data || rsaRes.value.data : null;
 
-      const firstVehicle = Array.isArray(vehicleData) && vehicleData.length > 0 ? vehicleData[0] : vehicleData;
-      const vehicleList = Array.isArray(vehicleData) ? vehicleData : (vehicleData?.data && Array.isArray(vehicleData.data) ? vehicleData.data : (firstVehicle ? [firstVehicle] : []));
-      const totalVehiclesCount = vehicleList.length || 0;
+      const vehicleList = Array.isArray(vehicleData) ? vehicleData : [];
+      const firstVehicle = vehicleList.length > 0 ? vehicleList[0] : null;
+      const totalVehiclesCount = vehicleList.length;
 
       return {
         user: {

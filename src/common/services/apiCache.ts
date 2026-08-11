@@ -8,6 +8,38 @@ interface CacheEntry<T> {
 
 const memoryCache = new Map<string, CacheEntry<any>>();
 
+const safeSessionStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        return window.sessionStorage.getItem(key);
+      }
+    } catch (_e) {}
+    return null;
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.setItem(key, value);
+      }
+    } catch (_e) {}
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.removeItem(key);
+      }
+    } catch (_e) {}
+  },
+  clear: (): void => {
+    try {
+      if (typeof window !== "undefined" && window.sessionStorage) {
+        window.sessionStorage.clear();
+      }
+    } catch (_e) {}
+  }
+};
+
 export async function fetchWithTtlCache<T>(
   cacheKey: string,
   fetcher: () => Promise<T>,
@@ -15,7 +47,26 @@ export async function fetchWithTtlCache<T>(
   forceRefresh = false
 ): Promise<T> {
   const now = Date.now();
-  const entry = memoryCache.get(cacheKey);
+  let entry = memoryCache.get(cacheKey);
+
+  // If not found in memoryCache, try to recover from sessionStorage
+  if (!entry) {
+    const serialized = safeSessionStorage.getItem(cacheKey);
+    if (serialized) {
+      try {
+        const parsed = JSON.parse(serialized);
+        if (parsed && parsed.data !== undefined && parsed.timestamp) {
+          entry = {
+            data: parsed.data as T,
+            timestamp: parsed.timestamp
+          };
+          memoryCache.set(cacheKey, entry);
+        }
+      } catch (_e) {
+        safeSessionStorage.removeItem(cacheKey);
+      }
+    }
+  }
 
   if (!forceRefresh && entry) {
     if (entry.data !== undefined && now - entry.timestamp < ttlMs) {
@@ -29,10 +80,16 @@ export async function fetchWithTtlCache<T>(
   const promise = (async () => {
     try {
       const data = await fetcher();
-      memoryCache.set(cacheKey, { data, timestamp: Date.now() });
+      const timestamp = Date.now();
+      memoryCache.set(cacheKey, { data, timestamp });
+      
+      // Persist to sessionStorage
+      safeSessionStorage.setItem(cacheKey, JSON.stringify({ data, timestamp }));
+      
       return data;
     } catch (err) {
       memoryCache.delete(cacheKey);
+      safeSessionStorage.removeItem(cacheKey);
       throw err;
     }
   })();
@@ -43,8 +100,11 @@ export async function fetchWithTtlCache<T>(
 
 export function invalidateCacheKey(cacheKey: string) {
   memoryCache.delete(cacheKey);
+  safeSessionStorage.removeItem(cacheKey);
 }
 
 export function invalidateAllCache() {
   memoryCache.clear();
+  safeSessionStorage.clear();
 }
+

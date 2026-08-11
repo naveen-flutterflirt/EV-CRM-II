@@ -1,4 +1,5 @@
 import api from "../../../../config/axios";
+import { fetchRawVehiclesCached } from "../../../../common/services/vehicleCache";
 import {
   ServiceSlot,
   BookingPayload,
@@ -75,20 +76,30 @@ export async function fetchCrmCustomersApi(): Promise<CustomerSelect[]> {
 }
 
 export async function fetchCrmVehiclesApi(customerId?: string): Promise<VehicleSelect[]> {
-  const url = customerId ? `/vehicles?customerId=${customerId}` : "/vehicles";
-  const res = await api.get(url);
-  const rawData = res.data?.data || res.data;
-  const list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+  let list: any[] = [];
+  if (customerId) {
+    list = await fetchRawVehiclesCached(customerId);
+  } else {
+    const url = "/vehicles";
+    const res = await api.get(url);
+    const rawData = res.data?.data || res.data;
+    list = Array.isArray(rawData) ? rawData : (rawData?.data || []);
+  }
+
   return list.map((v: any) => {
-    const brand = v.model?.manufacturer?.name || v.brand || "";
-    const model = v.model?.modelName || v.modelName || v.model || "";
+    const brand = typeof v.brand === "object"
+      ? v.brand?.manufacturerName || v.brand?.name || ""
+      : v.brand || v.manufacturerName || v.model?.manufacturer?.name || "";
+    const model = typeof v.model === "object"
+      ? v.model?.modelName || v.model?.name || ""
+      : v.model || v.modelName || "";
     const reg = v.registrationNo || v.registrationNumber || "";
     const displayLabel = brand || model 
       ? `${brand} ${model}${reg ? ` (${reg})` : ''}`.trim() 
       : reg || "Vehicle";
 
     return {
-      vehicleId: v.vehicleId || v.id || "",
+      vehicleId: v.vehicleId || v.id || v.vehicle_id || "",
       registrationNo: displayLabel,
       customerId: v.customerId || v.userId || v.customer_id || v.user_id || "",
     };
