@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useCustomerDashboardHook } from '../hooks/useCustomerDashboard';
 import { PortalLayout } from '../components/PortalLayout';
@@ -696,53 +696,58 @@ export const CustomerHomeScreen: React.FC<CustomerHomeScreenProps> = ({
               );
             })() : null}
 
-            {/* 4. Booked Appointments Section (View Multiple Appointments) */}
+            {/* 4. Booked Appointments Section (View Multiple Appointments in Horizontal Scroll) */}
             {activeAppointments.length > 0 ? (
               <View style={styles.appointmentsSection}>
                 <Text style={styles.sectionHeaderTitle}>Upcoming Appointments</Text>
-                {activeAppointments.map((appt) => {
-                  const isConfirmed = appt.status === 'confirmed';
-                  return (
-                    <TouchableOpacity 
-                      key={appt.appointmentId}
-                      style={[styles.jobTrackingCard, { marginTop: 8 }]}
-                      onPress={() => {
-                        setSelectedJobCard(getVirtualJobCard(appt) as any);
-                        setActiveTab('JOBCARD');
-                      }}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.jobCardHeaderRow}>
-                        <View style={styles.calendarIconBg}>
-                          <Feather name="calendar" size={18} color="#0f766e" />
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalApptsContainer}
+                >
+                  {activeAppointments.map((appt) => {
+                    const isConfirmed = appt.status === 'confirmed';
+                    return (
+                      <TouchableOpacity 
+                        key={appt.appointmentId}
+                        style={styles.appointmentHorizontalCard}
+                        onPress={() => {
+                          setSelectedJobCard(getVirtualJobCard(appt) as any);
+                          setActiveTab('JOBCARD');
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <View style={styles.jobCardHeaderRow}>
+                          <View style={styles.calendarIconBg}>
+                            <Feather name="calendar" size={18} color="#0f766e" />
+                          </View>
+                          <View style={styles.jobCardTextContainer}>
+                            <Text style={[styles.jobCardLabel, { color: '#0f766e' }]}>
+                              {appt.jobType === 'scheduled_maintenance' ? 'Scheduled Maintenance' : (appt.jobType === 'running_repair' ? 'Running Repair' : 'General Service')}
+                            </Text>
+                            <Text style={styles.jobCardTitle} numberOfLines={1}>
+                              {appt.apptNumber}
+                            </Text>
+                            <Text style={styles.jobCardDesc} numberOfLines={1}>
+                              Status: {isConfirmed ? 'Confirmed' : (appt.status === 'checked_in' ? 'Checked In' : 'Awaiting Confirmation')}
+                            </Text>
+                            <Text style={styles.appointmentTimeText} numberOfLines={1}>
+                              Date: {formatAppointmentDate(appt.scheduledAt)}
+                            </Text>
+                          </View>
                         </View>
-                        <View style={styles.jobCardTextContainer}>
-                          <Text style={[styles.jobCardLabel, { color: '#0f766e' }]}>
-                            {appt.jobType === 'scheduled_maintenance' ? 'Scheduled Maintenance' : (appt.jobType === 'running_repair' ? 'Running Repair' : 'General Service')}
-                          </Text>
-                          <Text style={styles.jobCardTitle}>
-                            {appt.apptNumber}
-                          </Text>
-                          <Text style={styles.jobCardDesc}>
-                            Status: {isConfirmed ? 'Confirmed & Scheduled' : (appt.status === 'checked_in' ? 'Checked In' : 'Initiated (Awaiting Confirmation)')}
-                          </Text>
-                          <Text style={styles.appointmentTimeText}>
-                            Date: {formatAppointmentDate(appt.scheduledAt)}
+                        <View style={[styles.progressContainer, { marginTop: 12 }]}>
+                          <View style={styles.progressBarBg}>
+                            <View style={[styles.progressBarFill, { backgroundColor: '#0f766e', width: `${appt.status === 'checked_in' ? 30 : (isConfirmed ? 20 : 10)}%` }]} />
+                          </View>
+                          <Text style={styles.progressText}>
+                            Status • {appt.status.replace(/_/g, ' ').toUpperCase()}
                           </Text>
                         </View>
-                        <Feather name="chevron-right" size={20} color="#71717a" />
-                      </View>
-                      <View style={styles.progressContainer}>
-                        <View style={styles.progressBarBg}>
-                          <View style={[styles.progressBarFill, { backgroundColor: '#0f766e', width: `${appt.status === 'checked_in' ? 30 : (isConfirmed ? 20 : 10)}%` }]} />
-                        </View>
-                        <Text style={styles.progressText}>
-                          Status • {appt.status.replace(/_/g, ' ').toUpperCase()}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
               </View>
             ) : null}
 
@@ -1059,7 +1064,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     fontFamily: 'PlusJakartaSans-Bold',
     marginTop: 18,
-    marginBottom: 6,
+    marginBottom: 10,
     paddingHorizontal: 2,
   },
   appointmentTimeText: {
@@ -1069,6 +1074,24 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans-Regular',
   },
   appointmentsSection: {
-    marginBottom: 10,
+    marginBottom: 20,
+  },
+  horizontalApptsContainer: {
+    paddingRight: 20,
+    paddingBottom: 8,
+  },
+  appointmentHorizontalCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    width: 290,
+    marginRight: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 10,
+    elevation: 2,
   },
 });
